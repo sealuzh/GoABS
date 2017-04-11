@@ -12,6 +12,10 @@ import (
 	"bitbucket.org/sealuzh/goptc/data"
 )
 
+const (
+	defaultBenchTimeout = 1 //mins
+)
+
 var configPath string
 var dynamic bool
 var out string
@@ -63,19 +67,24 @@ func dptc(c data.Config) error {
 		c.Project,
 		c.DynamicConfig.WarmupIterations,
 		c.DynamicConfig.MeasurementIterations,
+		defaultBenchTimeout,
 		*out,
 	)
 	if err != nil {
 		panic(err)
 	}
 
+	benchCounter := 0
 	for run := 1; run <= c.DynamicConfig.Runs; run++ {
+		fmt.Printf("---------- Run #%d ----------\n", run)
 		// execute baseline run
-		err = runner.Run(run, "baseline")
+		execBenchs, err := runner.Run(run, "baseline")
 		if err != nil {
 			return err
 		}
+		benchCounter += execBenchs
 		//TODO: introduce regression and execute benchmark
 	}
+	fmt.Printf("\n%d Benchmarks executed in %d runs\n", benchCounter, c.DynamicConfig.Runs)
 	return nil
 }

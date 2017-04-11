@@ -25,15 +25,14 @@ const (
 
 	benchResultUnit = "ns/op"
 	benchRuntime    = 1
-	benchTimeout    = 1
 	benchTimeoutMsg = "*** Test killed with quit: ran too long"
 )
 
 type Runner interface {
-	Run(run int, test string) error
+	Run(run int, test string) (int, error)
 }
 
-func NewRunner(projectRoot string, wi int, mi int, out csv.Writer) (Runner, error) {
+func NewRunner(projectRoot string, wi int, mi int, timeout int, out csv.Writer) (Runner, error) {
 	pkgs, err := Functions(projectRoot)
 	if err != nil {
 		return nil, err
@@ -50,9 +49,10 @@ func NewRunner(projectRoot string, wi int, mi int, out csv.Writer) (Runner, erro
 			benchs:      pkgs,
 			env:         env(goPath(projectRoot)),
 			cmdCount:    cmdCount,
-			cmdArgs:     []string{cmdArgsTest, fmt.Sprintf(cmdArgsTimeout, benchTimeout), cmdCount, cmdArgsNoTests},
+			cmdArgs:     []string{cmdArgsTest, fmt.Sprintf(cmdArgsTimeout, timeout), cmdCount, cmdArgsNoTests},
 		},
-		penaltisedBenchs: make(map[string]struct{}),
+		penalisedBenchs: make(map[string]struct{}),
+		timeout:         timeout,
 	}, nil
 }
 
@@ -69,10 +69,11 @@ type defaultRunner struct {
 
 type runnerWithPenalty struct {
 	defaultRunner
-	penaltisedBenchs map[string]struct{}
+	timeout         int
+	penalisedBenchs map[string]struct{}
 }
 
-func (r *runnerWithPenalty) Run(run int, test string) error {
+func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 	benchCount := 0
 
 	for pkgName, pkg := range r.benchs {
@@ -82,12 +83,20 @@ func (r *runnerWithPenalty) Run(run int, test string) error {
 
 		err := os.Chdir(dir)
 		if err != nil {
-			return err
+			return benchCount, err
 		}
 
 		for fileName, file := range pkg {
 			fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
 			for _, bench := range file {
+				relBenchName := fmt.Sprintf("%s/%s::%s", pkgName, fileName, bench.Name)
+				// check if benchmark is penaltised
+				_, penaltised := r.penalisedBenchs[relBenchName]
+				if penaltised {
+					fmt.Printf("### Do not execute Benchmark due to penalty: %s\n", relBenchName)
+					continue
+				}
+
 				fmt.Printf("### Execute Benchmark: %s\n", bench.Name)
 				args := append(r.cmdArgs, fmt.Sprintf(cmdArgsBench, bench.Name))
 				c := exec.Command(cmdName, args...)
@@ -98,24 +107,24 @@ func (r *runnerWithPenalty) Run(run int, test string) error {
 				if err != nil {
 					fmt.Printf("Error while executing command '%s\n", c.Args)
 					if strings.Contains(resStr, benchTimeoutMsg) {
-						fmt.Printf("%s/%s::%s timed out after %d\n", pkgName, fileName, bench, (benchRuntime + benchTimeout))
+						fmt.Printf("%s timed out after %d\n", relBenchName, (benchRuntime + r.timeout))
+						r.penalisedBenchs[relBenchName] = struct{}{}
 						err = nil
 						continue
 					} else {
-						return fmt.Errorf("%v\n%s", err, res)
+						return benchCount, fmt.Errorf("%v\n%s", err, res)
 					}
 				}
 
 				err = parseAndSaveBenchOut(test, run, bench, pkgName, resStr, r.out)
 				if err != nil {
-					return err
+					return benchCount, err
 				}
 				benchCount++
 			}
 		}
 	}
-	fmt.Printf("\n%d Benchmarks executed\n", benchCount)
-	return nil
+	return benchCount, nil
 }
 
 func env(goPath string) []string {
