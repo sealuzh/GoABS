@@ -59,15 +59,19 @@ func dptc(c data.Config) error {
 	}
 	out := csv.NewWriter(f)
 
+	runner, err := bench.NewRunner(
+		c.Project,
+		c.DynamicConfig.WarmupIterations,
+		c.DynamicConfig.MeasurementIterations,
+		*out,
+	)
+	if err != nil {
+		panic(err)
+	}
+
 	for run := 1; run <= c.DynamicConfig.Runs; run++ {
 		// execute baseline run
-		err = bench.Run(c.Project,
-			c.DynamicConfig.WarmupIterations,
-			c.DynamicConfig.MeasurementIterations,
-			"baseline",
-			run,
-			*out,
-		)
+		err = runner.Run(run, "baseline")
 		if err != nil {
 			return err
 		}

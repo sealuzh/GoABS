@@ -1,68 +1,121 @@
 package bench
 
 import (
-	"bytes"
 	"encoding/csv"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"bitbucket.org/sealuzh/goptc/data"
 )
 
 const (
-	goPathVariable   = "GOPATH"
-	srcFolder        = "src"
-	depFolder        = "vendor"
-	goTestFileSuffix = "_test.go"
+	goPathVariable = "GOPATH"
+	srcFolder      = "src"
 
 	cmdName        = "go"
 	cmdArgsTest    = "test"
-	cmdArgsBench   = "-bench=."
+	cmdArgsBench   = "-bench=^%s$"
 	cmdArgsCount   = "-count=%d"
 	cmdArgsNoTests = "-run=^$"
+	cmdArgsTimeout = "-timeout=%dm"
 
 	benchResultUnit = "ns/op"
-
-	defaultPathSize = 20
+	benchRuntime    = 1
+	benchTimeout    = 1
+	benchTimeoutMsg = "*** Test killed with quit: ran too long"
 )
 
-func Run(projectRoot string, wi int, mi int, test string, run int, out csv.Writer) error {
-	dirs, err := dirs(projectRoot)
+type Runner interface {
+	Run(run int, test string) error
+}
+
+func NewRunner(projectRoot string, wi int, mi int, out csv.Writer) (Runner, error) {
+	pkgs, err := Functions(projectRoot)
 	if err != nil {
-		fmt.Printf("Could not retrieve directories\n")
-		return err
+		return nil, err
 	}
 
 	cmdCount := fmt.Sprintf(cmdArgsCount, (wi + mi))
-	cmdArgs := []string{cmdArgsTest, cmdArgsBench, cmdCount, cmdArgsNoTests}
-	env := env(goPath(projectRoot))
 
-	for _, dir := range dirs {
-		fmt.Printf("# Execute Benchmarks in Dir: %s\n", dir)
+	return &runnerWithPenalty{
+		defaultRunner: defaultRunner{
+			projectRoot: projectRoot,
+			wi:          wi,
+			mi:          mi,
+			out:         out,
+			benchs:      pkgs,
+			env:         env(goPath(projectRoot)),
+			cmdCount:    cmdCount,
+			cmdArgs:     []string{cmdArgsTest, fmt.Sprintf(cmdArgsTimeout, benchTimeout), cmdCount, cmdArgsNoTests},
+		},
+		penaltisedBenchs: make(map[string]struct{}),
+	}, nil
+}
 
-		err = os.Chdir(dir)
+type defaultRunner struct {
+	projectRoot string
+	wi          int
+	mi          int
+	out         csv.Writer
+	benchs      data.PackageMap
+	env         []string
+	cmdCount    string
+	cmdArgs     []string
+}
+
+type runnerWithPenalty struct {
+	defaultRunner
+	penaltisedBenchs map[string]struct{}
+}
+
+func (r *runnerWithPenalty) Run(run int, test string) error {
+	benchCount := 0
+
+	for pkgName, pkg := range r.benchs {
+		fmt.Printf("# Execute Benchmarks in Dir: %s\n", pkgName)
+
+		dir := filepath.Join(r.projectRoot, pkgName)
+
+		err := os.Chdir(dir)
 		if err != nil {
 			return err
 		}
-		c := exec.Command(cmdName, cmdArgs...)
-		c.Env = env
 
-		res, err := c.CombinedOutput()
-		if err != nil {
-			fmt.Printf("Error while executing command '%s\n", c.Args)
-			return fmt.Errorf("%v\n%s", err, res)
-		}
+		for fileName, file := range pkg {
+			fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
+			for _, bench := range file {
+				fmt.Printf("### Execute Benchmark: %s\n", bench.Name)
+				args := append(r.cmdArgs, fmt.Sprintf(cmdArgsBench, bench.Name))
+				c := exec.Command(cmdName, args...)
+				c.Env = r.env
 
-		err = parseAndSaveBenchOut(test, run, strings.Replace(dir, projectRoot, "", -1), string(res), out)
-		if err != nil {
-			return err
+				res, err := c.CombinedOutput()
+				resStr := string(res)
+				if err != nil {
+					fmt.Printf("Error while executing command '%s\n", c.Args)
+					if strings.Contains(resStr, benchTimeoutMsg) {
+						fmt.Printf("%s/%s::%s timed out after %d\n", pkgName, fileName, bench, (benchRuntime + benchTimeout))
+						err = nil
+						continue
+					} else {
+						return fmt.Errorf("%v\n%s", err, res)
+					}
+				}
+
+				err = parseAndSaveBenchOut(test, run, bench, pkgName, resStr, r.out)
+				if err != nil {
+					return err
+				}
+				benchCount++
+			}
 		}
 	}
-
-	return err
+	fmt.Printf("\n%d Benchmarks executed\n", benchCount)
+	return nil
 }
 
 func env(goPath string) []string {
@@ -84,52 +137,19 @@ func env(goPath string) []string {
 	return ret
 }
 
-func parseAndSaveBenchOut(test string, run int, pkg string, res string, out csv.Writer) error {
-	resArr := strings.Split(res, "\n")
-	for _, benchRes := range resArr {
-		benchResArr, err := parseLine(benchRes)
-		if err != nil {
-			return fmt.Errorf("Could not parse line '%s'", benchRes)
+func parseAndSaveBenchOut(test string, run int, b data.Function, pkg string, res string, out csv.Writer) error {
+	resArr := strings.Fields(res)
+	for i, f := range resArr {
+		if f == benchResultUnit {
+			out.Write([]string{strconv.FormatInt(int64(run), 10),
+				test,
+				filepath.Join(pkg, b.File, b.Name),
+				resArr[i-1],
+			})
 		}
-		// benchResArr := strings.Split(benchRes, " ")
-		if len(benchResArr) != 4 || strings.TrimSpace(benchResArr[3]) != benchResultUnit {
-			// not a benchmark line
-			continue
-		}
-		out.Write([]string{strconv.FormatInt(int64(run), 10),
-			test,
-			fmt.Sprintf("%s%s", pkg, strings.TrimSpace(benchResArr[0])),
-			strings.TrimSpace(benchResArr[2]),
-		})
 	}
 	out.Flush()
 	return nil
-}
-
-func parseLine(l string) ([]string, error) {
-	ret := make([]string, 0, 10)
-	b := bytes.NewBuffer([]byte{})
-	inWord := false
-	for _, c := range l {
-		if c != ' ' && c != '	' {
-			inWord = true
-			_, err := b.WriteRune(c)
-			if err != nil {
-				return nil, err
-			}
-		} else if inWord {
-			inWord = false
-			ret = append(ret, b.String())
-			b = bytes.NewBuffer([]byte{})
-		}
-	}
-
-	// add potential last element
-	if inWord {
-		ret = append(ret, b.String())
-	}
-
-	return ret, nil
 }
 
 func goPath(p string) string {
@@ -142,61 +162,4 @@ func goPath(p string) string {
 		}
 	}
 	return fmt.Sprintf("/%s", filepath.Join(pathArr[:c]...))
-}
-
-func dirs(root string) ([]string, error) {
-	paths := make([]string, 0, defaultPathSize)
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() {
-			return nil
-		}
-
-		if !isValidDir(path) {
-			return filepath.SkipDir
-		}
-
-		fileInfos, err := ioutil.ReadDir(path)
-		if err != nil {
-			return err
-		}
-
-		// check wether directory contains test files
-		validDir := false
-		for _, f := range fileInfos {
-			if !f.IsDir() {
-				if strings.HasSuffix(f.Name(), goTestFileSuffix) {
-					validDir = true
-					break
-				}
-			}
-		}
-
-		if validDir {
-			paths = append(paths, path)
-		}
-
-		return err
-	})
-	return paths, err
-}
-
-func isValidDir(path string) bool {
-	pathElems := strings.Split(path, string(filepath.Separator))
-
-	for _, el := range pathElems {
-		// remove everything from dependencies folder
-		if el == depFolder {
-			return false
-		}
-		// remove all hidden folders
-		if strings.HasPrefix(el, ".") {
-			return false
-		}
-	}
-
-	return true
 }
