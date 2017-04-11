@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultBenchTimeout = 1 //mins
+	defaultBenchTimeout = "10m"
 )
 
 var configPath string
@@ -63,11 +63,16 @@ func dptc(c data.Config) error {
 	}
 	out := csv.NewWriter(f)
 
+	bto := c.DynamicConfig.Timeout
+	if bto == "" {
+		bto = defaultBenchTimeout
+	}
+
 	runner, err := bench.NewRunner(
 		c.Project,
 		c.DynamicConfig.WarmupIterations,
 		c.DynamicConfig.MeasurementIterations,
-		defaultBenchTimeout,
+		bto,
 		*out,
 	)
 	if err != nil {
@@ -78,10 +83,12 @@ func dptc(c data.Config) error {
 	for run := 1; run <= c.DynamicConfig.Runs; run++ {
 		fmt.Printf("---------- Run #%d ----------\n", run)
 		// execute baseline run
-		execBenchs, err := runner.Run(run, "baseline")
+		test := "baseline"
+		execBenchs, err, dur := bench.TimedRun(runner, run, test)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("Run #%d of %s took %dns\n", run, test, dur.Nanoseconds())
 		benchCounter += execBenchs
 		//TODO: introduce regression and execute benchmark
 	}

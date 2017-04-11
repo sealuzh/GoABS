@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"bitbucket.org/sealuzh/goptc/data"
 )
@@ -21,7 +22,7 @@ const (
 	cmdArgsBench   = "-bench=^%s$"
 	cmdArgsCount   = "-count=%d"
 	cmdArgsNoTests = "-run=^$"
-	cmdArgsTimeout = "-timeout=%dm"
+	cmdArgsTimeout = "-timeout=%s"
 
 	benchResultUnit = "ns/op"
 	benchRuntime    = 1
@@ -32,7 +33,7 @@ type Runner interface {
 	Run(run int, test string) (int, error)
 }
 
-func NewRunner(projectRoot string, wi int, mi int, timeout int, out csv.Writer) (Runner, error) {
+func NewRunner(projectRoot string, wi int, mi int, timeout string, out csv.Writer) (Runner, error) {
 	pkgs, err := Functions(projectRoot)
 	if err != nil {
 		return nil, err
@@ -69,7 +70,7 @@ type defaultRunner struct {
 
 type runnerWithPenalty struct {
 	defaultRunner
-	timeout         int
+	timeout         string
 	penalisedBenchs map[string]struct{}
 }
 
@@ -107,7 +108,7 @@ func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 				if err != nil {
 					fmt.Printf("Error while executing command '%s\n", c.Args)
 					if strings.Contains(resStr, benchTimeoutMsg) {
-						fmt.Printf("%s timed out after %d\n", relBenchName, (benchRuntime + r.timeout))
+						fmt.Printf("%s timed out after %s\n", relBenchName, r.timeout)
 						r.penalisedBenchs[relBenchName] = struct{}{}
 						err = nil
 						continue
@@ -125,6 +126,13 @@ func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 		}
 	}
 	return benchCount, nil
+}
+
+func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {
+	now := time.Now()
+	execBenchs, err := r.Run(run, test)
+	dur := time.Since(now)
+	return execBenchs, err, dur
 }
 
 func env(goPath string) []string {

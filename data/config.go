@@ -6,7 +6,8 @@ type Config struct {
 }
 
 type DynamicConfig struct {
-	WarmupIterations      int `json:"wi"`
-	MeasurementIterations int `json:"i"`
-	Runs                  int `json:"runs"`
+	WarmupIterations      int    `json:"wi"`
+	MeasurementIterations int    `json:"i"`
+	Runs                  int    `json:"runs"`
+	Timeout               string `json:"bench_timeout"`
 }
