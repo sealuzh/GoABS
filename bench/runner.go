@@ -107,10 +107,14 @@ func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 				resStr := string(res)
 				if err != nil {
 					fmt.Printf("Error while executing command '%s\n", c.Args)
-					fmt.Printf("%s\n", resStr)
-					r.penalisedBenchs[relBenchName] = struct{}{}
-					err = nil
-					continue
+					if strings.Contains(resStr, benchTimeoutMsg) {
+						fmt.Printf("%s timed out after %s\n", relBenchName, r.timeout)
+						r.penalisedBenchs[relBenchName] = struct{}{}
+						err = nil
+						continue
+					} else {
+						fmt.Printf("%s\n", resStr)
+					}
 				}
 
 				err = parseAndSaveBenchOut(test, run, bench, pkgName, resStr, r.out)
