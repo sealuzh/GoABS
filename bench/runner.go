@@ -123,6 +123,9 @@ func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 				}
 				if parsed {
 					benchCount++
+				} else {
+					fmt.Printf("%s result could not be parsed\n", relBenchName)
+					r.penalisedBenchs[relBenchName] = struct{}{}
 				}
 			}
 		}
