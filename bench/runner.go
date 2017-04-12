@@ -117,11 +117,13 @@ func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 					}
 				}
 
-				err = parseAndSaveBenchOut(test, run, bench, pkgName, resStr, r.out)
+				parsed, err := parseAndSaveBenchOut(test, run, bench, pkgName, resStr, r.out)
 				if err != nil {
 					return benchCount, err
 				}
-				benchCount++
+				if parsed {
+					benchCount++
+				}
 			}
 		}
 	}
@@ -154,10 +156,12 @@ func env(goPath string) []string {
 	return ret
 }
 
-func parseAndSaveBenchOut(test string, run int, b data.Function, pkg string, res string, out csv.Writer) error {
+func parseAndSaveBenchOut(test string, run int, b data.Function, pkg string, res string, out csv.Writer) (bool, error) {
 	resArr := strings.Fields(res)
+	var parsed bool
 	for i, f := range resArr {
 		if f == benchResultUnit {
+			parsed = true
 			out.Write([]string{strconv.FormatInt(int64(run), 10),
 				test,
 				filepath.Join(pkg, b.File, b.Name),
@@ -166,7 +170,7 @@ func parseAndSaveBenchOut(test string, run int, b data.Function, pkg string, res
 		}
 	}
 	out.Flush()
-	return nil
+	return parsed, nil
 }
 
 func goPath(p string) string {

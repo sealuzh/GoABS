@@ -123,12 +123,12 @@ type BenchVisitor struct {
 func (v *BenchVisitor) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
-		v.handleFuncDecl(n)
+		v.VisitFuncDecl(n)
 	}
 	return v
 }
 
-func (v *BenchVisitor) handleFuncDecl(f *ast.FuncDecl) {
+func (v *BenchVisitor) VisitFuncDecl(f *ast.FuncDecl) {
 	n := f.Name.Name
 	if !strings.HasPrefix(n, benchFuncPrefix) {
 		return
