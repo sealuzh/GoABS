@@ -8,9 +8,8 @@ import (
 )
 
 func MatchingFunction(node *ast.FuncDecl, fun data.Function) bool {
-	var match bool
 	// name match
-	match = node.Name.Name == fun.Name
+	match := node.Name.Name == fun.Name
 	// receiver match
 	if node.Recv != nil {
 		// method
@@ -19,10 +18,10 @@ func MatchingFunction(node *ast.FuncDecl, fun data.Function) bool {
 			fmt.Println(err)
 			return false
 		}
-		match = match || typeName == fun.Receiver
+		match = match && typeName == fun.Receiver
 	} else {
 		// function
-		match = match || fun.Receiver == ""
+		match = match && fun.Receiver == ""
 	}
 	// no parameter/return type matching necessary as Go does not provide Function-overloading
 	return match
