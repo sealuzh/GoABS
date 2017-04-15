@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 
 	"bitbucket.org/sealuzh/goptc/bench"
 	"bitbucket.org/sealuzh/goptc/data"
+	"bitbucket.org/sealuzh/goptc/trans/regression"
 )
 
 const (
@@ -80,6 +82,8 @@ func dptc(c data.Config) error {
 	}
 
 	benchCounter := 0
+	start := time.Now()
+	regIntr := regression.NewRelative(c.Project, c.DynamicConfig.Regression)
 	for run := 1; run <= c.DynamicConfig.Runs; run++ {
 		fmt.Printf("---------- Run #%d ----------\n", run)
 		// execute baseline run
@@ -88,10 +92,26 @@ func dptc(c data.Config) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Run #%d of %s took %dns\n", run, test, dur.Nanoseconds())
+		fmt.Printf("Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
 		benchCounter += execBenchs
-		//TODO: introduce regression and execute benchmark
+		// execute benchmark suite with introduced regressions
+		for _, f := range c.DynamicConfig.Functions {
+			// introduce regression into function
+			err := regIntr.Trans(f)
+			test = f.String()
+			if err != nil {
+				fmt.Printf("Could not introduce regression into function %s", test)
+				continue
+			}
+			execBenchs, err, dur := bench.TimedRun(runner, run, test)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
+			benchCounter += execBenchs
+		}
 	}
-	fmt.Printf("\n%d Benchmarks executed in %d runs\n", benchCounter, c.DynamicConfig.Runs)
+	took := time.Since(start)
+	fmt.Printf("\n%d Benchmarks executed in %d runs which took %dns\n", benchCounter, c.DynamicConfig.Runs, took.Nanoseconds())
 	return nil
 }

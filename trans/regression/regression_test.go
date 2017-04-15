@@ -42,10 +42,11 @@ const (
 	`
 )
 
-func fun(path string) data.Function {
+func fun(pkg, file string) data.Function {
 	return data.Function{
 		Name: "test",
-		Path: path,
+		Pkg:  pkg,
+		File: file,
 	}
 }
 
@@ -60,7 +61,7 @@ func TestRelRegIntroFunc(t *testing.T) {
 	}
 
 	visitor := &relRegVisitor{
-		fun:       fun(""),
+		fun:       fun("", ""),
 		violation: 1.0,
 	}
 
@@ -87,7 +88,9 @@ func TestRelRegFile(t *testing.T) {
 		t.Errorf("could not get working directory")
 		return
 	}
-	tmpFilePath := filepath.Join(wd, "tmp.go")
+
+	fun := fun("", "tmp.go")
+	tmpFilePath := filepath.Join(wd, fun.File)
 	f, err := os.OpenFile(tmpFilePath, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		t.Errorf("could not create file: %v", err)
@@ -114,8 +117,7 @@ func TestRelRegFile(t *testing.T) {
 		t.Errorf("could not close file")
 	}
 
-	ri := NewRelative("", 1.0)
-	fun := fun(tmpFilePath)
+	ri := NewRelative(wd, 1.0)
 	err = ri.Trans(fun)
 	if err != nil {
 		t.Errorf("could not transform file: %v", err)

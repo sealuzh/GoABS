@@ -1,13 +1,26 @@
 package data
 
+import (
+	"fmt"
+	"path/filepath"
+)
+
 // Function represents a Go function.
 // It does not contain function parameters nor return types, as they are not part of the function signature.
 // The method receiver is part of the signature (if available).
 type Function struct {
-	Path     string
+	Pkg      string
 	File     string
 	Name     string
 	Receiver string
+}
+
+func (f Function) String() string {
+	funcName := f.Name
+	if f.Receiver != "" {
+		funcName = fmt.Sprintf("%s.%s", f.Receiver, f.Name)
+	}
+	return filepath.Join(f.Pkg, f.File, funcName)
 }
 
 type File []Function

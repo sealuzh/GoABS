@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"bitbucket.org/sealuzh/goptc/data"
 	"bitbucket.org/sealuzh/goptc/trans"
@@ -31,10 +32,11 @@ func NewRelative(basePath string, violation float32) Introducer {
 }
 
 func (i *relIntroducer) Trans(fun data.Function) error {
+	filePath := filepath.Join(i.basePath, fun.Pkg, fun.File)
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, fun.Path, nil, parser.AllErrors)
+	f, err := parser.ParseFile(fset, filePath, nil, parser.AllErrors)
 	if err != nil {
-		fmt.Printf("Could not parse file: %s\n", fun.Path)
+		fmt.Printf("Could not parse file: %s\n", filePath)
 		return err
 	}
 
@@ -45,16 +47,16 @@ func (i *relIntroducer) Trans(fun data.Function) error {
 
 	ast.Walk(v, f)
 
-	file, err := os.OpenFile(fun.Path, os.O_WRONLY, os.ModePerm)
+	file, err := os.OpenFile(filePath, os.O_WRONLY, os.ModePerm)
 	if err != nil {
-		fmt.Printf("Could not open file: %s\n", fun.Path)
+		fmt.Printf("Could not open file: %s\n", filePath)
 		return err
 	}
 
 	err = printer.Fprint(file, fset, f)
 	if err != nil {
 		file.Close()
-		fmt.Printf("Could not save back to file: %s\n", fun.Path)
+		fmt.Printf("Could not save back to file: %s\n", filePath)
 		return err
 	}
 	file.Close()

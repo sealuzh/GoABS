@@ -88,9 +88,9 @@ func parseFile(path, pkg, fn string) (data.File, error) {
 	benchs := make([]data.Function, 0, defaultBenchCount)
 
 	v := &BenchVisitor{
-		path: pkg,
-		fn:   fn,
-		bs:   benchs,
+		pkg: pkg,
+		fn:  fn,
+		bs:  benchs,
 	}
 	ast.Walk(v, f)
 
@@ -115,9 +115,9 @@ func isValidDir(path string) bool {
 }
 
 type BenchVisitor struct {
-	path string
-	fn   string
-	bs   []data.Function
+	pkg string
+	fn  string
+	bs  []data.Function
 }
 
 func (v *BenchVisitor) Visit(node ast.Node) ast.Visitor {
@@ -135,7 +135,7 @@ func (v *BenchVisitor) VisitFuncDecl(f *ast.FuncDecl) {
 	}
 
 	fun := data.Function{
-		Path: v.path,
+		Pkg:  v.pkg,
 		File: v.fn,
 		Name: n,
 	}
