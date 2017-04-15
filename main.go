@@ -88,27 +88,34 @@ func dptc(c data.Config) error {
 		fmt.Printf("---------- Run #%d ----------\n", run)
 		// execute baseline run
 		test := "baseline"
+		fmt.Printf("--- Run #%d of %s\n", run, test)
 		execBenchs, err, dur := bench.TimedRun(runner, run, test)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
+		fmt.Printf("--- Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
 		benchCounter += execBenchs
 		// execute benchmark suite with introduced regressions
 		for _, f := range c.DynamicConfig.Functions {
+			test = f.String()
+			fmt.Printf("--- Run #%d of %s\n", run, test)
 			// introduce regression into function
 			err := regIntr.Trans(f)
-			test = f.String()
 			if err != nil {
-				fmt.Printf("Could not introduce regression into function %s", test)
-				continue
+				fmt.Printf("Could not introduce regression into function %s\n", test)
+				return err
 			}
 			execBenchs, err, dur := bench.TimedRun(runner, run, test)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
+			fmt.Printf("--- Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
 			benchCounter += execBenchs
+			err = regIntr.Reset()
+			if err != nil {
+				fmt.Printf("Could not reset regression\n")
+				return err
+			}
 		}
 	}
 	took := time.Since(start)

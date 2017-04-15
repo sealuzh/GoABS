@@ -47,7 +47,7 @@ func (i *relIntroducer) Trans(fun data.Function) error {
 
 	ast.Walk(v, f)
 
-	file, err := os.OpenFile(filePath, os.O_WRONLY, os.ModePerm)
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		fmt.Printf("Could not open file: %s\n", filePath)
 		return err

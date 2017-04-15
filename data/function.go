@@ -9,10 +9,10 @@ import (
 // It does not contain function parameters nor return types, as they are not part of the function signature.
 // The method receiver is part of the signature (if available).
 type Function struct {
-	Pkg      string
-	File     string
-	Name     string
-	Receiver string
+	Pkg      string `json:"pkg"`
+	File     string `json:"file"`
+	Name     string `json:"name"`
+	Receiver string `json:"recv"`
 }
 
 func (f Function) String() string {
