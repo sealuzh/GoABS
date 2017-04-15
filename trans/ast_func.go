@@ -37,7 +37,7 @@ func receiverType(fn *ast.FuncDecl) (string, error) {
 		return e.Name, nil
 	case *ast.StarExpr:
 		if id, ok := e.X.(*ast.Ident); ok {
-			return id.Name, nil
+			return fmt.Sprintf("*%s", id.Name), nil
 		}
 	}
 	// The parser accepts much more than just the legal forms.
