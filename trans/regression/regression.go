@@ -168,7 +168,15 @@ func (v *relRegVisitor) VisitFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	// time.Sleep(time.Duration(float64(time.Since(start).Nanoseconds()) * 0.1))
 	sleep := v.sleepStmt(time, startVarName)
 	// add sleep to end of body
+	lastStmt := b.List[len(b.List)-1]
 	list = append(list, sleep)
+	lenList := len(list)
+	switch lastStmt.(type) {
+	case *ast.ReturnStmt:
+		el := list[lenList-1]
+		list[lenList-1] = list[lenList-2]
+		list[lenList-2] = el
+	}
 
 	b.List = list
 	return v

@@ -23,8 +23,9 @@ const (
 	
 	import "fmt"
 
-	func test() {
+	func test() string {
 		fmt.Println("test func")
+		return ""
 	}
 	`
 	srcExpected = `
@@ -34,10 +35,11 @@ const (
 
 	import "fmt"
 		
-	func test() {
+	func test() string {
 		_goptcRegrStart := time.Now()
 		fmt.Println("test func")
 		time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))
+		return ""
 	}
 	`
 )
