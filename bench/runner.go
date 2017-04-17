@@ -11,12 +11,10 @@ import (
 	"time"
 
 	"bitbucket.org/sealuzh/goptc/data"
+	"bitbucket.org/sealuzh/goptc/executil"
 )
 
 const (
-	goPathVariable = "GOPATH"
-	srcFolder      = "src"
-
 	cmdName        = "go"
 	cmdArgsTest    = "test"
 	cmdArgsBench   = "-bench=^%s$"
@@ -48,7 +46,7 @@ func NewRunner(projectRoot string, wi int, mi int, timeout string, out csv.Write
 			mi:          mi,
 			out:         out,
 			benchs:      pkgs,
-			env:         env(goPath(projectRoot)),
+			env:         executil.Env(executil.GoPath(projectRoot)),
 			cmdCount:    cmdCount,
 			cmdArgs:     []string{cmdArgsTest, fmt.Sprintf(cmdArgsTimeout, timeout), cmdCount, cmdArgsNoTests},
 		},
@@ -140,25 +138,6 @@ func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {
 	return execBenchs, err, dur
 }
 
-func env(goPath string) []string {
-	env := os.Environ()
-	ret := make([]string, 0, len(env)+1)
-	added := false
-	goPathDecl := fmt.Sprintf("%s=%s", goPathVariable, goPath)
-	for _, e := range env {
-		if strings.HasPrefix(e, goPathVariable) {
-			ret = append(ret, goPathDecl)
-			added = true
-		} else {
-			ret = append(ret, e)
-		}
-	}
-	if !added {
-		ret = append(ret, goPathDecl)
-	}
-	return ret
-}
-
 func parseAndSaveBenchOut(test string, run int, b data.Function, pkg string, res string, out csv.Writer) (bool, error) {
 	resArr := strings.Fields(res)
 	var parsed bool
@@ -174,16 +153,4 @@ func parseAndSaveBenchOut(test string, run int, b data.Function, pkg string, res
 	}
 	out.Flush()
 	return parsed, nil
-}
-
-func goPath(p string) string {
-	pathArr := strings.Split(p, string(filepath.Separator))
-	var c int
-	for i, el := range pathArr {
-		if el == srcFolder {
-			c = i
-			break
-		}
-	}
-	return fmt.Sprintf("/%s", filepath.Join(pathArr[:c]...))
 }
