@@ -11,6 +11,7 @@ import (
 
 	"bitbucket.org/sealuzh/goptc/bench"
 	"bitbucket.org/sealuzh/goptc/data"
+	"bitbucket.org/sealuzh/goptc/trans/count"
 	"bitbucket.org/sealuzh/goptc/trans/regression"
 )
 
@@ -18,14 +19,19 @@ const (
 	defaultBenchTimeout = "10m"
 )
 
+// file (in and out) arguments
 var configPath string
-var dynamic bool
 var out string
+
+// operation flags
+var dynamic bool
+var trace bool
 
 func parseArguments() {
 	flag.StringVar(&configPath, "c", "", "config file")
-	flag.BoolVar(&dynamic, "d", false, "dynamic coverage")
 	flag.StringVar(&out, "o", "", "output file")
+	flag.BoolVar(&dynamic, "d", false, "dynamic coverage")
+	flag.BoolVar(&trace, "t", false, "trace executions of public API")
 	flag.Parse()
 }
 
@@ -49,6 +55,15 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	parseArguments()
 	c := parseConfig()
+
+	if trace {
+		err := count.Functions(c.Project, c.TraceLibrary, out, false)
+		if err != nil {
+			panic(err)
+		}
+		// when tracing every other operation can not be performed (due to config incompatibility)
+		return
+	}
 
 	if dynamic {
 		err := dptc(c)

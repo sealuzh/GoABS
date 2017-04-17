@@ -3,6 +3,7 @@ package data
 type Config struct {
 	Project       string        `json:"project"`
 	DynamicConfig DynamicConfig `json:"dynamic"`
+	TraceLibrary  string        `json:"trace_lib"`
 }
 
 type DynamicConfig struct {
