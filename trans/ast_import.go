@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 )
 
 func AddImport(importName string, node *ast.File) string {
@@ -32,6 +33,12 @@ func AddImport(importName string, node *ast.File) string {
 		newDecls = append(newDecls, node.Decls...)
 		node.Decls = newDecls
 		node.Imports = append(node.Imports, is)
+
+		// find last / in import name
+		posSlash := strings.LastIndex(importName, "/")
+		if posSlash >= 0 {
+			importName = importName[posSlash+1 : len(importName)]
+		}
 	}
 
 	return importName

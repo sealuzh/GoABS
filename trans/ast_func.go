@@ -13,7 +13,7 @@ func MatchingFunction(node *ast.FuncDecl, fun data.Function) bool {
 	// receiver match
 	if node.Recv != nil {
 		// method
-		typeName, err := receiverType(node)
+		typeName, err := ReceiverType(node)
 		if err != nil {
 			fmt.Println(err)
 			return false
@@ -27,7 +27,7 @@ func MatchingFunction(node *ast.FuncDecl, fun data.Function) bool {
 	return match
 }
 
-func receiverType(fn *ast.FuncDecl) (string, error) {
+func ReceiverType(fn *ast.FuncDecl) (string, error) {
 	if fn.Recv == nil {
 		// function and not method
 		return "", fmt.Errorf("%s is not a method", fn.Name.Name)
