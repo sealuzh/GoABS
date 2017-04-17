@@ -23,6 +23,8 @@ const (
 	writerVar = "PtcTraceWriter"
 
 	godepsFolder = "Godeps"
+	vendorFolder = "vendor"
+	srcFolder    = "src"
 )
 
 func Functions(project, traceLibrary, out string, execTests bool) error {
@@ -66,6 +68,30 @@ func Functions(project, traceLibrary, out string, execTests bool) error {
 	return nil
 }
 
+func basePkg(traceLibrary string) string {
+	pathArr := strings.Split(traceLibrary, string(filepath.Separator))
+
+	// check whether library is in GOPATH or in vender folder
+	startFolder := srcFolder
+	if strings.Contains(traceLibrary, vendorFolder) {
+		startFolder = vendorFolder
+	}
+
+	start := false
+	var buf bytes.Buffer
+	for _, pe := range pathArr {
+		if pe == startFolder {
+			start = true
+			continue
+		}
+		if start {
+			buf.WriteString(pe)
+			buf.WriteString("/")
+		}
+	}
+	return buf.String()
+}
+
 func createWriter(traceLibrary, out string) (string, error) {
 	pkgPath := filepath.Join(traceLibrary, pkgName)
 	err := os.Mkdir(pkgPath, os.ModePerm)
@@ -73,20 +99,8 @@ func createWriter(traceLibrary, out string) (string, error) {
 		fmt.Printf("Could not create trace writer directory")
 		return "", err
 	}
-	pathArr := strings.Split(traceLibrary, string(filepath.Separator))
-	inVendor := false
-	var buf bytes.Buffer
-	for _, pe := range pathArr {
-		if pe == "vendor" {
-			inVendor = true
-			continue
-		}
-		if inVendor {
-			buf.WriteString(pe)
-			buf.WriteString("/")
-		}
-	}
-	basePkgName := buf.String()
+
+	basePkgName := basePkg(traceLibrary)
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -98,23 +112,39 @@ func createWriter(traceLibrary, out string) (string, error) {
 	package %s
 
 	import (
-		"io"
 		"os"
 		"fmt"
+		"sync"
 	)
 
 	var %s = createTraceWriter("%s")
 
-	func createTraceWriter(outPath string) io.Writer {
-		f, err := os.Create(outPath)
+	func createTraceWriter(outPath string) *traceWriter {
+		f, err := os.OpenFile(outPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, os.ModePerm)
 		if err != nil {
 			panic(fmt.Sprint("Could not create PTC trace writer file: " + err.Error()))
 		}
-		_, err = f.WriteString("LIB;PROJECT;METHOD")
+		_, err = f.WriteString("LIB;PROJECT;METHOD\n")
 		if err != nil {
 			panic(fmt.Sprint("Could not write csv header to file"))
 		}
-		return f
+		return &traceWriter{
+			f: f,
+		}
+	}
+
+	type traceWriter struct{
+		f *os.File
+		l sync.Mutex
+	}
+	
+	func (tw *traceWriter) Write(b []byte) {
+		tw.l.Lock()
+		defer tw.l.Unlock()
+		_, err := tw.f.Write(b)
+		if err != nil {
+			panic("Couldn't write to trace file: " + err.Error())
+		}
 	}
 	`
 	err = ioutil.WriteFile(filepath.Join(pkgPath, fileName),
@@ -131,6 +161,9 @@ func transformLibrary(path, writerPkgName, projectName, libraryName string) erro
 			for _, el := range pathElems {
 				// remove all hidden folders
 				if strings.HasPrefix(el, ".") || el == pkgName || el == godepsFolder {
+					return filepath.SkipDir
+				}
+				if projectName == libraryName && el == vendorFolder {
 					return filepath.SkipDir
 				}
 			}
@@ -264,8 +297,11 @@ func (v publicFuncCountVisitor) VisitFuncDecl(node *ast.FuncDecl) ast.Visitor {
 				Fun: ast.NewIdent("[]byte"),
 				Args: []ast.Expr{
 					&ast.BasicLit{
-						Kind:  token.STRING,
-						Value: fmt.Sprintf("\"%s;%s;%s\"", v.libraryName, v.projectName, filepath.Join(v.relPath, fmt.Sprintf("%s%s", recv, funcName))),
+						Kind: token.STRING,
+						Value: fmt.Sprintf("\"%s;%s;%s\\n\"",
+							v.libraryName,
+							v.projectName,
+							filepath.Join(v.relPath, fmt.Sprintf("%s%s", recv, funcName))),
 					},
 				},
 			},
