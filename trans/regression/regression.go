@@ -101,34 +101,8 @@ func (v *relRegVisitor) Visit(node ast.Node) ast.Visitor {
 
 func (v *relRegVisitor) VisitFile(node *ast.File) ast.Visitor {
 	timePkgName := "time"
-	timePath := fmt.Sprintf("\"%s\"", timePkgName)
-	var timeImported bool
-	for _, is := range node.Imports {
-		if is.Path.Value == timePath {
-			timeImported = true
-			if is.Name != nil {
-				v.timeImportName = is.Name.Name
-			}
-		}
-	}
-	if !timeImported {
-		is := &ast.ImportSpec{
-			Path: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: timePath,
-			},
-		}
-		newDecls := make([]ast.Decl, 0, len(node.Decls)+1)
-		newDecls = append(newDecls, &ast.GenDecl{
-			Specs: []ast.Spec{is},
-			Tok:   token.IMPORT,
-		})
-		newDecls = append(newDecls, node.Decls...)
-		node.Decls = newDecls
-		node.Imports = append(node.Imports, is)
-		v.timeImportName = timePkgName
-	}
-
+	importName := trans.AddImport(timePkgName, node)
+	v.timeImportName = importName
 	return v
 }
 
