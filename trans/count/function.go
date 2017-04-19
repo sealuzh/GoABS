@@ -125,10 +125,6 @@ func createWriter(traceLibrary, out string) (string, error) {
 		if err != nil {
 			panic(fmt.Sprint("Could not create PTC trace writer file: " + err.Error()))
 		}
-		_, err = f.WriteString("LIB;PROJECT;METHOD\n")
-		if err != nil {
-			panic(fmt.Sprint("Could not write csv header to file"))
-		}
 		return &traceWriter{
 			f: f,
 		}
