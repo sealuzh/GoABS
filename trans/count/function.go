@@ -22,9 +22,10 @@ const (
 	fileName  = pkgName + ".go"
 	writerVar = "PtcTraceWriter"
 
-	godepsFolder = "Godeps"
-	vendorFolder = "vendor"
-	srcFolder    = "src"
+	godepsFolder    = "Godeps"
+	vendorFolder    = "vendor"
+	oldVendorFolder = "_vendor"
+	srcFolder       = "src"
 )
 
 func Functions(project, traceLibrary, out string, execTests bool) error {
@@ -158,14 +159,13 @@ func transformLibrary(path, writerPkgName, projectName, libraryName string) erro
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			pathElems := strings.Split(path, string(filepath.Separator))
-			for _, el := range pathElems {
-				// remove all hidden folders
-				if strings.HasPrefix(el, ".") || el == pkgName || el == godepsFolder {
-					return filepath.SkipDir
-				}
-				if projectName == libraryName && el == vendorFolder {
-					return filepath.SkipDir
-				}
+			el := pathElems[len(pathElems)-1]
+			if strings.HasPrefix(el, ".") ||
+				el == pkgName ||
+				el == godepsFolder ||
+				el == vendorFolder ||
+				el == oldVendorFolder {
+				return filepath.SkipDir
 			}
 			return nil
 		}
