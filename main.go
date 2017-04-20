@@ -80,6 +80,7 @@ func dptc(c data.Config) error {
 		return err
 	}
 	out := csv.NewWriter(f)
+	out.Comma = ';'
 
 	bto := c.DynamicConfig.Timeout
 	if bto == "" {
@@ -107,10 +108,10 @@ func dptc(c data.Config) error {
 	benchCounter := 0
 	start := time.Now()
 	regIntr := regression.NewRelative(c.Project, c.DynamicConfig.Regression)
-	for run := 1; run <= c.DynamicConfig.Runs; run++ {
+	for run := 0; run < c.DynamicConfig.Runs; run++ {
 		fmt.Printf("---------- Run #%d ----------\n", run)
 		// execute baseline run
-		test := "baseline"
+		test := "Baseline"
 		fmt.Printf("--- Run #%d of %s\n", run, test)
 		execBenchs, err, dur := bench.TimedRun(runner, run, test)
 		if err != nil {
