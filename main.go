@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -96,6 +97,13 @@ func dptc(c data.Config) error {
 		panic(err)
 	}
 
+	// check if function/method files can be opened
+	err = checkFiles(c)
+	if err != nil {
+		fmt.Printf("Could not open one of the function/method files: %v\n", err)
+		return err
+	}
+
 	benchCounter := 0
 	start := time.Now()
 	regIntr := regression.NewRelative(c.Project, c.DynamicConfig.Regression)
@@ -135,5 +143,16 @@ func dptc(c data.Config) error {
 	}
 	took := time.Since(start)
 	fmt.Printf("\n%d Benchmarks executed in %d runs which took %dns\n", benchCounter, c.DynamicConfig.Runs, took.Nanoseconds())
+	return nil
+}
+
+func checkFiles(c data.Config) error {
+	for _, f := range c.DynamicConfig.Functions {
+		path := filepath.Join(c.Project, f.Pkg, f.File)
+		_, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
