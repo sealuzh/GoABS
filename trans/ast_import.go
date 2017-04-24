@@ -25,12 +25,17 @@ func AddImport(importName string, node *ast.File) string {
 				Value: importPath,
 			},
 		}
+
+		li := lastImportStmt(node.Decls)
+		fmt.Printf("position to insert import: %d\n", li)
+
 		newDecls := make([]ast.Decl, 0, len(node.Decls)+1)
+		newDecls = append(newDecls, node.Decls[:li]...)
 		newDecls = append(newDecls, &ast.GenDecl{
 			Specs: []ast.Spec{is},
 			Tok:   token.IMPORT,
 		})
-		newDecls = append(newDecls, node.Decls...)
+		newDecls = append(newDecls, node.Decls[li:]...)
 		node.Decls = newDecls
 		node.Imports = append(node.Imports, is)
 
@@ -42,4 +47,27 @@ func AddImport(importName string, node *ast.File) string {
 	}
 
 	return importName
+}
+
+func lastImportStmt(decls []ast.Decl) int {
+	i := 0
+	inImports := false
+L:
+	for ii, decl := range decls {
+		switch d := decl.(type) {
+		case *ast.GenDecl:
+			if d.Tok == token.IMPORT {
+				inImports = true
+			} else if inImports {
+				i = ii
+				break L
+			}
+		default:
+			if inImports {
+				i = ii
+				break L
+			}
+		}
+	}
+	return i
 }
