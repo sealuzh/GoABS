@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -120,7 +121,12 @@ func dptc(c data.Config) error {
 		fmt.Printf("--- Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
 		benchCounter += execBenchs
 		// execute benchmark suite with introduced regressions
-		for _, f := range c.DynamicConfig.Functions {
+		funs := c.DynamicConfig.Functions
+		if c.DynamicConfig.Rmit {
+			funs = rmitFuncs(c.DynamicConfig.Functions)
+			fmt.Println("Using RMIT Methodology")
+		}
+		for _, f := range funs {
 			test = f.String()
 			fmt.Printf("--- Run #%d of %s\n", run, test)
 			// introduce regression into function
@@ -145,6 +151,30 @@ func dptc(c data.Config) error {
 	took := time.Since(start)
 	fmt.Printf("\n%d Benchmarks executed in %d runs which took %dns\n", benchCounter, c.DynamicConfig.Runs, took.Nanoseconds())
 	return nil
+}
+
+func rmitFuncs(funcs []data.Function) []data.Function {
+	l := len(funcs)
+	ret := make([]data.Function, l)
+	usedIx := make(map[int]struct{})
+	rnd := rand.NewSource(time.Now().UnixNano())
+	for _, f := range funcs {
+		i := -1
+		used := true
+		for used {
+			i = int(rnd.Int63()) % l
+			_, used = usedIx[i]
+		}
+
+		if i < 0 {
+			panic("i should not be below 0")
+		}
+
+		usedIx[i] = struct{}{}
+
+		ret[i] = f
+	}
+	return ret
 }
 
 func checkFiles(c data.Config) error {
