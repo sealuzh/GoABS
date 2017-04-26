@@ -106,6 +106,8 @@ func dptc(c data.Config) error {
 		return err
 	}
 
+	clear := clearTmpFolder(c.ClearFolder)
+
 	benchCounter := 0
 	start := time.Now()
 	regIntr := regression.NewRelative(c.Project, c.DynamicConfig.Regression)
@@ -119,6 +121,9 @@ func dptc(c data.Config) error {
 			return err
 		}
 		fmt.Printf("--- Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
+		// clear tmp folder
+		clear()
+
 		benchCounter += execBenchs
 		// execute benchmark suite with introduced regressions
 		funs := c.DynamicConfig.Functions
@@ -141,6 +146,10 @@ func dptc(c data.Config) error {
 			}
 			fmt.Printf("--- Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
 			benchCounter += execBenchs
+
+			// clear tmp folder
+			clear()
+
 			err = regIntr.Reset()
 			if err != nil {
 				fmt.Printf("Could not reset regression\n")
@@ -151,6 +160,36 @@ func dptc(c data.Config) error {
 	took := time.Since(start)
 	fmt.Printf("\n%d Benchmarks executed in %d runs which took %dns\n", benchCounter, c.DynamicConfig.Runs, took.Nanoseconds())
 	return nil
+}
+
+func clearTmpFolder(path string) func() {
+	if path == "" {
+		return func() {}
+	}
+	// not closing file as we are using an anonymous function that uses that file
+	folder, err := os.Open(path)
+	if err != nil {
+		panic(fmt.Sprintf("Could not open tmp folder: %v", err))
+	}
+	stat, err := folder.Stat()
+	if err != nil {
+		panic(fmt.Sprintf("Could not get info for folder: %v", err))
+	}
+	if !stat.IsDir() {
+		panic(fmt.Sprintf("Path not a folder: %s", path))
+	}
+	return func() {
+		contents, err := folder.Readdirnames(-1)
+		if err != nil {
+			// should not be the case
+			fmt.Printf("Could not read dir: %s\n", path)
+			return
+		}
+		for _, f := range contents {
+			// do not care about error
+			os.RemoveAll(filepath.Join(path, f))
+		}
+	}
 }
 
 func rmitFuncs(funcs []data.Function) []data.Function {
