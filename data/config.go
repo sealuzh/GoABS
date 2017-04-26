@@ -4,6 +4,7 @@ type Config struct {
 	Project       string        `json:"project"`
 	DynamicConfig DynamicConfig `json:"dynamic"`
 	TraceLibrary  string        `json:"trace_lib"`
+	ClearFolder   string        `json:"clear"`
 }
 
 type DynamicConfig struct {
