@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	depFolder        = "vendor"
+	vendorFolder     = "vendor"
+	usVendorFolder   = "_vendor"
+	workspaceFolder  = "_workspace"
 	goTestFileSuffix = "_test.go"
 	benchFuncPrefix  = "Benchmark"
 
@@ -102,7 +104,7 @@ func isValidDir(path string) bool {
 
 	for _, el := range pathElems {
 		// remove everything from dependencies folder
-		if el == depFolder {
+		if el == vendorFolder || el == usVendorFolder || el == workspaceFolder {
 			return false
 		}
 		// remove all hidden folders
