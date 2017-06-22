@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"bitbucket.org/sealuzh/goptc/data"
@@ -23,7 +24,7 @@ const (
 	defaultBenchCount = 5
 )
 
-func Functions(rootPath string) (data.PackageMap, error) {
+func MatchingFunctions(rootPath, benchRegex string) (data.PackageMap, error) {
 	paths := make(data.PackageMap)
 	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -51,7 +52,7 @@ func Functions(rootPath string) (data.PackageMap, error) {
 			}
 			fn := fi.Name()
 			if strings.HasSuffix(fn, goTestFileSuffix) {
-				benchs, err := parseFile(filepath.Join(path, fn), pkg, fn)
+				benchs, err := parseFile(filepath.Join(path, fn), pkg, fn, benchRegex)
 				if err != nil {
 					return err
 				}
@@ -79,7 +80,11 @@ func Functions(rootPath string) (data.PackageMap, error) {
 	return paths, err
 }
 
-func parseFile(path, pkg, fn string) (data.File, error) {
+func Functions(rootPath string) (data.PackageMap, error) {
+	return MatchingFunctions(rootPath, "^.*$")
+}
+
+func parseFile(path, pkg, fn, benchRegex string) (data.File, error) {
 	fset := token.NewFileSet()
 
 	f, err := parser.ParseFile(fset, path, nil, parser.AllErrors)
@@ -89,11 +94,17 @@ func parseFile(path, pkg, fn string) (data.File, error) {
 
 	benchs := make([]data.Function, 0, defaultBenchCount)
 
+	regex, err := regexp.Compile(benchRegex)
+	if err != nil {
+		return nil, err
+	}
+
 	v := &BenchVisitor{
-		fset: fset,
-		pkg:  pkg,
-		fn:   fn,
-		bs:   benchs,
+		fset:       fset,
+		pkg:        pkg,
+		fn:         fn,
+		bs:         benchs,
+		benchRegex: regex,
 	}
 	ast.Walk(v, f)
 
@@ -118,10 +129,11 @@ func isValidDir(path string) bool {
 }
 
 type BenchVisitor struct {
-	fset *token.FileSet
-	pkg  string
-	fn   string
-	bs   []data.Function
+	fset       *token.FileSet
+	pkg        string
+	fn         string
+	bs         []data.Function
+	benchRegex *regexp.Regexp
 }
 
 func (v *BenchVisitor) Visit(node ast.Node) ast.Visitor {
@@ -134,7 +146,7 @@ func (v *BenchVisitor) Visit(node ast.Node) ast.Visitor {
 
 func (v *BenchVisitor) VisitFuncDecl(f *ast.FuncDecl) {
 	n := f.Name.Name
-	if !strings.HasPrefix(n, benchFuncPrefix) {
+	if !strings.HasPrefix(n, benchFuncPrefix) || !v.benchRegex.Match([]byte(n)) {
 		return
 	}
 

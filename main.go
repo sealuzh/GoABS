@@ -89,15 +89,28 @@ func dptc(c data.Config) error {
 		bto = defaultBenchTimeout
 	}
 
+	var benchs data.PackageMap
+	if benchRegex := c.DynamicConfig.BenchmarkRegex; benchRegex != "" {
+		benchs, err = bench.MatchingFunctions(c.Project, benchRegex)
+	} else {
+		benchs, err = bench.Functions(c.Project)
+	}
+
+	if err != nil {
+		return err
+	}
+
 	runner, err := bench.NewRunner(
 		c.Project,
+		benchs,
 		c.DynamicConfig.WarmupIterations,
 		c.DynamicConfig.MeasurementIterations,
 		bto,
+		time.Duration(c.DynamicConfig.Duration),
 		*out,
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// check if function/method files can be opened
@@ -107,12 +120,17 @@ func dptc(c data.Config) error {
 		return err
 	}
 
+	runs := c.DynamicConfig.Runs
+	if runs == 0 {
+		runs = 1
+	}
+
 	clear := clearTmpFolder(c.ClearFolder)
 
 	benchCounter := 0
 	start := time.Now()
 	regIntr := regression.NewRelative(c.Project, c.DynamicConfig.Regression)
-	for run := 0; run < c.DynamicConfig.Runs; run++ {
+	for run := 0; run < runs; run++ {
 		fmt.Printf("---------- Run #%d ----------\n", run)
 		// execute baseline run
 		test := "Baseline"
