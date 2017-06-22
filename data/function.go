@@ -9,10 +9,12 @@ import (
 // It does not contain function parameters nor return types, as they are not part of the function signature.
 // The method receiver is part of the signature (if available).
 type Function struct {
-	Pkg      string `json:"pkg"`
-	File     string `json:"file"`
-	Name     string `json:"name"`
-	Receiver string `json:"recv"`
+	Pkg       string `json:"pkg"`
+	File      string `json:"file"`
+	Name      string `json:"name"`
+	Receiver  string `json:"recv"`
+	StartLine int    `json:"start_line"`
+	EndLine   int    `json:"end_line"`
 }
 
 func (f Function) String() string {
@@ -20,7 +22,11 @@ func (f Function) String() string {
 	if f.Receiver != "" {
 		funcName = fmt.Sprintf("%s.%s", f.Receiver, f.Name)
 	}
-	return filepath.Join(f.Pkg, f.File, funcName)
+	s := filepath.Join(f.Pkg, f.File, funcName)
+	if f.StartLine != -1 && f.EndLine != -1 {
+		return fmt.Sprintf("%s:%d-%d", s, f.StartLine, f.EndLine)
+	}
+	return s
 }
 
 type File []Function
