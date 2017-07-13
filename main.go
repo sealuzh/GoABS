@@ -14,6 +14,7 @@ import (
 
 	"bitbucket.org/sealuzh/goptc/bench"
 	"bitbucket.org/sealuzh/goptc/data"
+	"bitbucket.org/sealuzh/goptc/deps"
 	"bitbucket.org/sealuzh/goptc/trans/count"
 	"bitbucket.org/sealuzh/goptc/trans/regression"
 )
@@ -58,6 +59,14 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	parseArguments()
 	c := parseConfig()
+
+	// install project dependencies
+	if c.FetchDeps {
+		err := deps.Fetch(c.Project)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	if trace {
 		err := count.Functions(c.Project, c.TraceLibrary, out, false)

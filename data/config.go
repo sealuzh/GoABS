@@ -7,6 +7,7 @@ type Config struct {
 	DynamicConfig DynamicConfig `json:"dynamic"`
 	TraceLibrary  string        `json:"trace_lib"`
 	ClearFolder   string        `json:"clear"`
+	FetchDeps     bool          `json:"fetch_deps"`
 }
 
 type DynamicConfig struct {
