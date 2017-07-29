@@ -51,7 +51,7 @@ func (d DepMgr) InstallCmd() string {
 	case gopm:
 		cmd = "gopm get"
 	case gogradle:
-		cmd = "gradlew vendor"
+		cmd = "./gradlew vendor"
 	case gpm:
 		cmd = "gpm install"
 	case glock:
