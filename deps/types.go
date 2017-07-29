@@ -21,7 +21,7 @@ const (
 	glock     DepMgr = "glock"
 )
 
-const goGet = "go get $(go list ./... | grep -v -E 'vendor|_vendor|.vendor|_workspace'"
+var goGet = []string{"go", "get", "$(go list ./... | grep -v -E 'vendor|_vendor|.vendor|_workspace')"}
 
 type DepMgr string
 
@@ -29,33 +29,33 @@ func (d DepMgr) String() string {
 	return string(d)
 }
 
-func (d DepMgr) InstallCmd() string {
-	var cmd string
+func (d DepMgr) InstallCmd() []string {
+	var cmd []string
 	switch d {
 	case glide:
-		cmd = "glide install"
+		cmd = []string{"glide", "install"}
 	case godep:
-		cmd = "godep restore"
+		cmd = []string{"godep", "restore"}
 	case govendor:
-		cmd = "govendor sync"
+		cmd = []string{"govendor", "sync"}
 	case submodule:
-		cmd = "manul -I"
+		cmd = []string{"manul", "-I"}
 	case gvt:
-		cmd = "gvt fetch"
+		cmd = []string{"gvt", "fetch"}
 	case govend:
-		cmd = "govend -v"
+		cmd = []string{"govend", "-v"}
 	case trash:
-		cmd = "trash"
+		cmd = []string{"trash"}
 	case gom:
-		cmd = "gom install"
+		cmd = []string{"gom", "install"}
 	case gopm:
-		cmd = "gopm get"
+		cmd = []string{"gopm", "get"}
 	case gogradle:
-		cmd = "./gradlew vendor"
+		cmd = []string{"./gradlew", "vendor"}
 	case gpm:
-		cmd = "gpm install"
+		cmd = []string{"gpm", "install"}
 	case glock:
-		cmd = "glock sync"
+		cmd = []string{"glock", "sync"}
 
 	case get:
 		fallthrough
