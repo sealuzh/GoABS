@@ -1,6 +1,9 @@
 package data
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Config struct {
 	Project       string        `json:"project"`
@@ -32,4 +35,8 @@ func (d *Duration) UnmarshalJSON(data []byte) error {
 	}
 	*d = Duration(dur)
 	return nil
+}
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", time.Duration(d).String())), nil
 }
