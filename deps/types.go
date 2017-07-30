@@ -157,7 +157,7 @@ func (d DepMgr) installCmd() string {
 
 // based on https://github.com/blindpirate/report-of-build-tools-for-java-and-golang and
 // https://github.com/golang/go/wiki/PackageManagementTools
-func depMgr(projectPath string) DepMgr {
+func Manager(projectPath string) DepMgr {
 	// Godeps
 	p := filepath.Join(projectPath, "Godeps/Godeps.json")
 	_, err := os.Stat(p)

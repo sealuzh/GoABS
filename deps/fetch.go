@@ -12,7 +12,7 @@ func Fetch(projectPath string) error {
 	if err != nil {
 		return err
 	}
-	depMgr := depMgr(projectPath)
+	depMgr := Manager(projectPath)
 	env := executil.Env(executil.GoPath(projectPath))
 	out, err := depMgr.FetchDeps(env)
 	if err != nil {
