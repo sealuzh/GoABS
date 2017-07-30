@@ -1,8 +1,16 @@
 package deps
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+
+	"bitbucket.org/sealuzh/goptc/executil"
 )
 
 const (
@@ -21,7 +29,20 @@ const (
 	glock     DepMgr = "glock"
 )
 
-var goGet = []string{"go", "get", "$(go list ./... | grep -v -E 'vendor|_vendor|.vendor|_workspace')"}
+const (
+	shellCmd     = "/bin/bash"
+	shellCmdCArg = "-c"
+)
+
+const (
+	goCmd        = "go"
+	goGet        = "get"
+	goList       = "list"
+	goAllPkgs    = "./..."
+	goListNoDeps = "go list ./... | grep -v -E 'vendor|_vendor|.vendor|_workspace'"
+)
+
+var depFolders = []string{"vendor", "_vendor", ".vendor", "_workspace"}
 
 type DepMgr string
 
@@ -29,38 +50,107 @@ func (d DepMgr) String() string {
 	return string(d)
 }
 
-func (d DepMgr) InstallCmd() []string {
-	var cmd []string
+func (d DepMgr) FetchDeps(env []string) ([]byte, error) {
+	var c *exec.Cmd
+	switch d {
+	case get:
+		return execGoGet(env)
+	default:
+		cmdArr := strings.Split(d.installCmd(), " ")
+		c = exec.Command(cmdArr[0])
+		if len(cmdArr) > 1 {
+			c.Args = cmdArr
+		}
+	}
+	if len(env) > 0 {
+		c.Env = env
+	}
+	return c.CombinedOutput()
+}
+
+func execGoGet(env []string) ([]byte, error) {
+	setEnv := len(env) > 0
+	c := exec.Command(goCmd, goList, goAllPkgs)
+	if setEnv {
+		c.Env = env
+	}
+	out, err := c.CombinedOutput()
+	if err != nil {
+		return out, err
+	}
+
+	r := bufio.NewReader(bytes.NewBuffer(out))
+	var outBuf bytes.Buffer
+Loop:
+	for {
+		pkg, err := r.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break Loop
+			}
+			return outBuf.Bytes(), err
+		}
+
+		pkg = strings.TrimSpace(pkg)
+		if depsFolderInPath(pkg) {
+			continue Loop
+		}
+
+		cmd := exec.Command(goCmd, goGet, pkg)
+		if setEnv {
+			cmd.Env = env
+		}
+		out, err = cmd.CombinedOutput()
+		outBuf.Write(out)
+		if err != nil {
+			return outBuf.Bytes(), err
+		}
+	}
+	return outBuf.Bytes(), nil
+}
+
+func depsFolderInPath(path string) bool {
+	goPath := executil.GoPath(path)
+	for _, f := range depFolders {
+		if strings.Contains(goPath, f) {
+			return true
+		}
+	}
+	return false
+}
+
+func (d DepMgr) installCmd() string {
+	var cmd string
 	switch d {
 	case glide:
-		cmd = []string{"glide", "install"}
+		cmd = "glide install"
 	case godep:
-		cmd = []string{"godep", "restore"}
+		cmd = "godep restore"
 	case govendor:
-		cmd = []string{"govendor", "sync"}
+		cmd = "govendor sync"
 	case submodule:
-		cmd = []string{"manul", "-I"}
+		cmd = "manul -I"
 	case gvt:
-		cmd = []string{"gvt", "fetch"}
+		cmd = "gvt fetch"
 	case govend:
-		cmd = []string{"govend", "-v"}
+		cmd = "govend -v"
 	case trash:
-		cmd = []string{"trash"}
+		cmd = "trash"
 	case gom:
-		cmd = []string{"gom", "install"}
+		cmd = "gom install"
 	case gopm:
-		cmd = []string{"gopm", "get"}
+		cmd = "gopm get"
 	case gogradle:
-		cmd = []string{"./gradlew", "vendor"}
+		cmd = "./gradlew vendor"
 	case gpm:
-		cmd = []string{"gpm", "install"}
+		cmd = "gpm install"
 	case glock:
-		cmd = []string{"glock", "sync"}
+		cmd = "glock sync"
 
 	case get:
 		fallthrough
 	default:
-		cmd = goGet
+		cmd = fmt.Sprintf("%s %s $(%s)", goCmd, goGet, goList)
 	}
 	return cmd
 }

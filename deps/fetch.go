@@ -2,17 +2,19 @@ package deps
 
 import (
 	"fmt"
-	"os/exec"
+	"os"
+
+	"bitbucket.org/sealuzh/goptc/executil"
 )
 
 func Fetch(projectPath string) error {
-	depMgr := depMgr(projectPath)
-	cmdArr := depMgr.InstallCmd()
-	c := exec.Command(cmdArr[0])
-	if len(cmdArr) > 0 {
-		c.Args = cmdArr[1:]
+	err := os.Chdir(projectPath)
+	if err != nil {
+		return err
 	}
-	out, err := c.CombinedOutput()
+	depMgr := depMgr(projectPath)
+	env := executil.Env(executil.GoPath(projectPath))
+	out, err := depMgr.FetchDeps(env)
 	if err != nil {
 		return fmt.Errorf("Error while fetching dependencies for '%s': %v\n\nOut: %s", projectPath, err, string(out))
 	}
