@@ -145,16 +145,16 @@ func funSrcReturn() (src, srcExpected string) {
 	srcExpected = `
 	package regression
 
-	import "time"
-
 	import "fmt"
+	
+	import "time"
 
 	func test1() {}
 		
 	func test() string {
 		_goptcRegrStart := time.Now()
+		defer func() { time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000)) }()
 		fmt.Println("test func")
-		time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))
 		return ""
 	}
 
@@ -177,7 +177,7 @@ func TestRelRegFileReturn(t *testing.T) {
 func funSrcVoid() (src, srcExpected string) {
 	src = `
 	package regression
-	
+
 	import "fmt"
 
 	func test() {
@@ -187,14 +187,14 @@ func funSrcVoid() (src, srcExpected string) {
 	srcExpected = `
 	package regression
 
+	import "fmt"
+
 	import "time"
 
-	import "fmt"
-		
 	func test() {
 		_goptcRegrStart := time.Now()
+		defer func() {time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))}()
 		fmt.Println("test func")
-		time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))
 	}
 	`
 	return
@@ -214,7 +214,7 @@ func TestRelRegFileVoid(t *testing.T) {
 func funSrcValueRecvVoid() (src, srcExpected string) {
 	src = `
 	package regression
-	
+
 	import "fmt"
 
 	type T struct{}
@@ -226,16 +226,16 @@ func funSrcValueRecvVoid() (src, srcExpected string) {
 	srcExpected = `
 	package regression
 
-	import "time"
-
 	import "fmt"
 
+	import "time"
+
 	type T struct{}
-		
+
 	func (t T) test() {
 		_goptcRegrStart := time.Now()
+		defer func() {time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))}()
 		fmt.Println("test func")
-		time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))
 	}
 	`
 	return
@@ -255,7 +255,7 @@ func TestRelRegFileValueRecvVoid(t *testing.T) {
 func funSrcValueRecvReturn() (src, srcExpected string) {
 	src = `
 	package regression
-	
+
 	import "fmt"
 
 	type T struct{}
@@ -268,16 +268,16 @@ func funSrcValueRecvReturn() (src, srcExpected string) {
 	srcExpected = `
 	package regression
 
-	import "time"
-
 	import "fmt"
 
+	import "time"
+
 	type T struct{}
-		
+
 	func (t T) test() string {
 		_goptcRegrStart := time.Now()
+		defer func() {time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))}()
 		fmt.Println("test func")
-		time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))
 		return ""
 	}
 	`
@@ -298,7 +298,7 @@ func TestRelRegFileValueRecvReturn(t *testing.T) {
 func funSrcPointerRecvVoid() (src, srcExpected string) {
 	src = `
 	package regression
-	
+
 	import "fmt"
 
 	type T struct{}
@@ -310,16 +310,16 @@ func funSrcPointerRecvVoid() (src, srcExpected string) {
 	srcExpected = `
 	package regression
 
-	import "time"
-
 	import "fmt"
 
+	import "time"
+
 	type T struct{}
-		
+
 	func (t *T) test() {
 		_goptcRegrStart := time.Now()
+		defer func() {time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))}()
 		fmt.Println("test func")
-		time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))
 	}
 	`
 	return
@@ -339,7 +339,7 @@ func TestRelRegFilePointerRecvVoid(t *testing.T) {
 func funSrcPointerRecvReturn() (src, srcExpected string) {
 	src = `
 	package regression
-	
+
 	import "fmt"
 
 	type T struct{}
@@ -352,16 +352,16 @@ func funSrcPointerRecvReturn() (src, srcExpected string) {
 	srcExpected = `
 	package regression
 
-	import "time"
-
 	import "fmt"
 
+	import "time"
+
 	type T struct{}
-		
+
 	func (t *T) test() string {
 		_goptcRegrStart := time.Now()
+		defer func() {time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))}()
 		fmt.Println("test func")
-		time.Sleep(time.Duration(float32(time.Since(_goptcRegrStart).Nanoseconds()) * 1.000000))
 		return ""
 	}
 	`

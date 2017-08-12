@@ -27,7 +27,6 @@ func AddImport(importName string, node *ast.File) string {
 		}
 
 		li := lastImportStmt(node.Decls)
-		fmt.Printf("position to insert import: %d\n", li)
 
 		newDecls := make([]ast.Decl, 0, len(node.Decls)+1)
 		newDecls = append(newDecls, node.Decls[:li]...)

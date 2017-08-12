@@ -140,8 +140,21 @@ func (v *relRegVisitor) VisitFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	// add deferred sleep
 	// time.Sleep(time.Duration(float64(time.Since(start).Nanoseconds()) * 0.1))
 	sleep := v.sleepStmt(time, startVarName)
+
+	// wrap in immediately called closure of the form func() { sleep }()
 	deferredSleep := &ast.DeferStmt{
-		Call: sleep,
+		Call: &ast.CallExpr{
+			Fun: &ast.FuncLit{
+				Type: &ast.FuncType{
+					Params: &ast.FieldList{},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{&ast.ExprStmt{
+						X: sleep,
+					}},
+				},
+			},
+		},
 	}
 	list = append(list, deferredSleep)
 
