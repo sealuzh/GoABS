@@ -116,6 +116,7 @@ func dptc(c data.Config) error {
 		c.DynamicConfig.MeasurementIterations,
 		bto,
 		time.Duration(c.DynamicConfig.Duration),
+		c.DynamicConfig.BenchMem,
 		*out,
 	)
 	if err != nil {

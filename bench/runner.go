@@ -15,14 +15,13 @@ import (
 )
 
 const (
-	cmdName        = "go"
-	cmdArgsTest    = "test"
-	cmdArgsBench   = "-bench=^%s$"
-	cmdArgsCount   = "-count=%d"
-	cmdArgsNoTests = "-run=^$"
-	cmdArgsTimeout = "-timeout=%s"
-
-	benchResultUnit = "ns/op"
+	cmdName         = "go"
+	cmdArgsTest     = "test"
+	cmdArgsBench    = "-bench=^%s$"
+	cmdArgsCount    = "-count=%d"
+	cmdArgsNoTests  = "-run=^$"
+	cmdArgsTimeout  = "-timeout=%s"
+	cmdArgsMem      = "-benchmem"
 	benchRuntime    = 1
 	benchTimeoutMsg = "*** Test killed with quit: ran too long"
 )
@@ -33,7 +32,7 @@ type Runner interface {
 
 // NewRunner creates a new benchmark runner.
 // By default it returns a penalised runner that in consecutive runs only executes successful benchmark executions.
-func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout string, duration time.Duration, out csv.Writer) (Runner, error) {
+func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout string, duration time.Duration, benchMem bool, out csv.Writer) (Runner, error) {
 	// if benchmark gets executed over time period, do not do warm-up iterations
 	if duration > 0 {
 		wi = 0
@@ -45,18 +44,27 @@ func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeo
 	}
 
 	cmdCount := fmt.Sprintf(cmdArgsCount, (wi + mi))
+	cmdArgs := []string{cmdArgsTest, fmt.Sprintf(cmdArgsTimeout, timeout), cmdCount, cmdArgsNoTests}
+
+	var rp resultParser = rtResultParser{}
+	if benchMem {
+		cmdArgs = append(cmdArgs, cmdArgsMem)
+		rp = memResultParser{}
+	}
 
 	return &runnerWithPenalty{
 		defaultRunner: defaultRunner{
-			projectRoot: projectRoot,
-			wi:          wi,
-			mi:          mi,
-			duration:    duration,
-			out:         out,
-			benchs:      benchs,
-			env:         executil.Env(executil.GoPath(projectRoot)),
-			cmdCount:    cmdCount,
-			cmdArgs:     []string{cmdArgsTest, fmt.Sprintf(cmdArgsTimeout, timeout), cmdCount, cmdArgsNoTests},
+			projectRoot:  projectRoot,
+			wi:           wi,
+			mi:           mi,
+			duration:     duration,
+			benchMem:     benchMem,
+			resultParser: rp,
+			out:          out,
+			benchs:       benchs,
+			env:          executil.Env(executil.GoPath(projectRoot)),
+			cmdCount:     cmdCount,
+			cmdArgs:      cmdArgs,
 		},
 		penalisedBenchs: make(map[string]struct{}),
 		timeout:         timeout,
@@ -64,15 +72,17 @@ func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeo
 }
 
 type defaultRunner struct {
-	projectRoot string
-	wi          int
-	mi          int
-	duration    time.Duration
-	out         csv.Writer
-	benchs      data.PackageMap
-	env         []string
-	cmdCount    string
-	cmdArgs     []string
+	projectRoot  string
+	wi           int
+	mi           int
+	duration     time.Duration
+	benchMem     bool
+	resultParser resultParser
+	out          csv.Writer
+	benchs       data.PackageMap
+	env          []string
+	cmdCount     string
+	cmdArgs      []string
 }
 
 type runnerWithPenalty struct {
@@ -108,15 +118,18 @@ func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, test, pkg
 		fmt.Printf("%s\n", resStr)
 	}
 
-	parsed, err := parseAndSaveBenchOut(test, run, bench, pkgName, resStr, r.out)
+	result, err := r.resultParser.parse(resStr)
 	if err != nil {
+		if _, ok := err.(resultNotParsable); ok {
+			fmt.Printf("%s result could not be parsed\n", relBenchName)
+			r.penalisedBenchs[relBenchName] = struct{}{}
+			return false, nil
+		}
 		return false, err
 	}
-	if !parsed {
-		fmt.Printf("%s result could not be parsed\n", relBenchName)
-		r.penalisedBenchs[relBenchName] = struct{}{}
-		return false, nil
-	}
+
+	saveBenchOut(test, run, bench, pkgName, result, r.out, r.benchMem)
+
 	return true, nil
 }
 
@@ -173,19 +186,25 @@ func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {
 	return execBenchs, err, dur
 }
 
-func parseAndSaveBenchOut(test string, run int, b data.Function, pkg string, res string, out csv.Writer) (bool, error) {
-	resArr := strings.Fields(res)
-	var parsed bool
-	for i, f := range resArr {
-		if f == benchResultUnit {
-			parsed = true
-			out.Write([]string{strconv.FormatInt(int64(run), 10),
-				test,
-				filepath.Join(pkg, b.File, b.Name),
-				resArr[i-1],
-			})
-		}
+func saveBenchOut(test string, run int, b data.Function, pkg string, res []result, out csv.Writer, benchMem bool) {
+	outSize := 4
+	if benchMem {
+		outSize += 2
 	}
-	out.Flush()
-	return parsed, nil
+
+	for _, result := range res {
+		rec := make([]string, 0, outSize)
+		rec = append(rec, strconv.FormatInt(int64(run), 10))
+		rec = append(rec, test)
+		rec = append(rec, filepath.Join(pkg, b.File, b.Name))
+		rec = append(rec, strconv.FormatFloat(float64(result.Runtime), 'f', -1, 32))
+
+		if benchMem {
+			rec = append(rec, strconv.FormatInt(int64(result.Memory), 10))
+			rec = append(rec, strconv.FormatInt(int64(result.Allocations), 10))
+		}
+
+		out.Write(rec)
+		out.Flush()
+	}
 }
