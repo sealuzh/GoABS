@@ -14,19 +14,19 @@ import (
 )
 
 const (
-	get       DepMgr = "Get"
-	glide     DepMgr = "Glide"
-	godep     DepMgr = "Godep"
-	govendor  DepMgr = "Govendor"
-	submodule DepMgr = "manul"
-	gvt       DepMgr = "gvt"
-	govend    DepMgr = "govend"
-	trash     DepMgr = "trash"
-	gom       DepMgr = "gom"
-	gopm      DepMgr = "gopm"
-	gogradle  DepMgr = "Gogradle"
-	gpm       DepMgr = "gpm"
-	glock     DepMgr = "glock"
+	get      DepMgr = "Get"
+	glide    DepMgr = "Glide"
+	godep    DepMgr = "Godep"
+	govendor DepMgr = "Govendor"
+	//submodule DepMgr = "manul"
+	gvt      DepMgr = "gvt"
+	govend   DepMgr = "govend"
+	trash    DepMgr = "trash"
+	gom      DepMgr = "gom"
+	gopm     DepMgr = "gopm"
+	gogradle DepMgr = "Gogradle"
+	gpm      DepMgr = "gpm"
+	glock    DepMgr = "glock"
 )
 
 const (
@@ -128,8 +128,8 @@ func (d DepMgr) installCmd() string {
 		cmd = "godep restore"
 	case govendor:
 		cmd = "govendor sync"
-	case submodule:
-		cmd = "manul -I"
+	//case submodule:
+	//	cmd = "manul -I"
 	case gvt:
 		cmd = "gvt fetch"
 	case govend:
@@ -251,11 +251,11 @@ func Manager(projectPath string) DepMgr {
 	}
 
 	// submodule
-	p = filepath.Join(projectPath, ".gitsubmodules")
-	_, err = os.Stat(p)
-	if err == nil {
-		return submodule
-	}
+	// p = filepath.Join(projectPath, ".gitsubmodules")
+	// _, err = os.Stat(p)
+	// if err == nil {
+	// 	return submodule
+	// }
 
 	return get
 }
