@@ -17,10 +17,10 @@ type DynamicConfig struct {
 	BenchmarkRegex        string     `json:"bench_regex"`
 	WarmupIterations      int        `json:"wi"`
 	MeasurementIterations int        `json:"i"`
-	Duration              Duration   `json:"duration"`
+	BenchDuration         Duration   `json:"bench_duration"`
+	BenchTimeout          string     `json:"bench_timeout"`
 	BenchMem              bool       `json:"bench_mem"`
 	Runs                  int        `json:"runs"`
-	Timeout               string     `json:"bench_timeout"`
 	Regression            float32    `json:"regression"`
 	Functions             []Function `json:"functions"`
 	Rmit                  bool       `json:"rmit"`

@@ -93,7 +93,7 @@ func dptc(c data.Config) error {
 	out := csv.NewWriter(f)
 	out.Comma = ';'
 
-	bto := c.DynamicConfig.Timeout
+	bto := c.DynamicConfig.BenchTimeout
 	if bto == "" {
 		bto = defaultBenchTimeout
 	}
@@ -115,7 +115,7 @@ func dptc(c data.Config) error {
 		c.DynamicConfig.WarmupIterations,
 		c.DynamicConfig.MeasurementIterations,
 		bto,
-		time.Duration(c.DynamicConfig.Duration),
+		time.Duration(c.DynamicConfig.BenchDuration),
 		c.DynamicConfig.BenchMem,
 		*out,
 	)
