@@ -32,9 +32,9 @@ type Runner interface {
 
 // NewRunner creates a new benchmark runner.
 // By default it returns a penalised runner that in consecutive runs only executes successful benchmark executions.
-func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout string, duration time.Duration, benchMem bool, out csv.Writer) (Runner, error) {
+func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout string, benchDuration time.Duration, runDuration time.Duration, benchMem bool, out csv.Writer) (Runner, error) {
 	// if benchmark gets executed over time period, do not do warm-up iterations
-	if duration > 0 {
+	if benchDuration > 0 {
 		wi = 0
 	}
 
@@ -54,17 +54,18 @@ func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeo
 
 	return &runnerWithPenalty{
 		defaultRunner: defaultRunner{
-			projectRoot:  projectRoot,
-			wi:           wi,
-			mi:           mi,
-			duration:     duration,
-			benchMem:     benchMem,
-			resultParser: rp,
-			out:          out,
-			benchs:       benchs,
-			env:          executil.Env(executil.GoPath(projectRoot)),
-			cmdCount:     cmdCount,
-			cmdArgs:      cmdArgs,
+			projectRoot:   projectRoot,
+			wi:            wi,
+			mi:            mi,
+			benchDuration: benchDuration,
+			runDuration:   runDuration,
+			benchMem:      benchMem,
+			resultParser:  rp,
+			out:           out,
+			benchs:        benchs,
+			env:           executil.Env(executil.GoPath(projectRoot)),
+			cmdCount:      cmdCount,
+			cmdArgs:       cmdArgs,
 		},
 		penalisedBenchs: make(map[string]struct{}),
 		timeout:         timeout,
@@ -72,17 +73,18 @@ func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeo
 }
 
 type defaultRunner struct {
-	projectRoot  string
-	wi           int
-	mi           int
-	duration     time.Duration
-	benchMem     bool
-	resultParser resultParser
-	out          csv.Writer
-	benchs       data.PackageMap
-	env          []string
-	cmdCount     string
-	cmdArgs      []string
+	projectRoot   string
+	wi            int
+	mi            int
+	benchDuration time.Duration
+	benchMem      bool
+	runDuration   time.Duration
+	resultParser  resultParser
+	out           csv.Writer
+	benchs        data.PackageMap
+	env           []string
+	cmdCount      string
+	cmdArgs       []string
 }
 
 type runnerWithPenalty struct {
@@ -91,7 +93,30 @@ type runnerWithPenalty struct {
 	penalisedBenchs map[string]struct{}
 }
 
-func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, test, pkgName, fileName string) (bool, error) {
+func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, test, pkgName, fileName string) (int, error) {
+	if r.benchDuration != 0 {
+		startBench := time.Now()
+		benchCount := 0
+		for time.Since(startBench).Seconds() < r.benchDuration.Seconds() {
+			exec, err := r.RunBenchmarkOnce(bench, run, test, pkgName, fileName)
+			if err != nil || !exec {
+				return benchCount, err
+			}
+			benchCount++
+		}
+		return benchCount, nil
+	}
+
+	// no benchmark duration supplied -> only one benchmark execution
+	exec, err := r.RunBenchmarkOnce(bench, run, test, pkgName, fileName)
+	if exec {
+		return 1, err
+	}
+	return 0, err
+
+}
+
+func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, test, pkgName, fileName string) (bool, error) {
 	relBenchName := fmt.Sprintf("%s/%s::%s", pkgName, fileName, bench.Name)
 	// check if benchmark is penaltised
 	_, penaltised := r.penalisedBenchs[relBenchName]
@@ -133,9 +158,46 @@ func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, test, pkg
 	return true, nil
 }
 
-func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
+func (r *runnerWithPenalty) RunUntil(run int, test string, done <-chan struct{}) (int, error) {
 	benchCount := 0
+Forever:
+	for {
+		for pkgName, pkg := range r.benchs {
+			fmt.Printf("# Execute Benchmarks in Dir: %s\n", pkgName)
 
+			dir := filepath.Join(r.projectRoot, pkgName)
+
+			err := os.Chdir(dir)
+			if err != nil {
+				return benchCount, err
+			}
+
+			for fileName, file := range pkg {
+				fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
+			Bench:
+				for _, bench := range file {
+					executed, err := r.RunBenchmark(bench, run, test, pkgName, fileName)
+
+					if err != nil {
+						return benchCount, err
+					}
+					benchCount += executed
+
+					select {
+					case <-done:
+						break Forever
+					default:
+						continue Bench
+					}
+				}
+			}
+		}
+	}
+	return benchCount, nil
+}
+
+func (r *runnerWithPenalty) RunOnce(run int, test string) (int, error) {
+	benchCount := 0
 	for pkgName, pkg := range r.benchs {
 		fmt.Printf("# Execute Benchmarks in Dir: %s\n", pkgName)
 
@@ -149,34 +211,30 @@ func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 		for fileName, file := range pkg {
 			fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
 			for _, bench := range file {
-				if r.duration == 0 {
-					executed, err := r.RunBenchmark(bench, run, test, pkgName, fileName)
-					if err != nil {
-						return benchCount, err
-					}
-					if executed {
-						benchCount++
-					}
-				} else {
-					startBench := time.Now()
-					for time.Since(startBench).Seconds() < r.duration.Seconds() {
-						executed, err := r.RunBenchmark(bench, run, test, pkgName, fileName)
-						if err != nil {
-							return benchCount, err
-						}
-						if executed {
-							// execution of benchmark was succsessful
-							benchCount++
-						} else {
-							// execution of benchmark was not successful, do not execute it anymore
-							break
-						}
-					}
+				executed, err := r.RunBenchmark(bench, run, test, pkgName, fileName)
+				if err != nil {
+					return benchCount, err
 				}
+				benchCount += executed
+
 			}
 		}
 	}
 	return benchCount, nil
+}
+
+func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
+	if r.runDuration != 0 {
+		done := make(chan struct{})
+		go func() {
+			select {
+			case <-time.After(r.runDuration):
+				close(done)
+			}
+		}()
+		return r.RunUntil(run, test, done)
+	}
+	return r.RunOnce(run, test)
 }
 
 func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {

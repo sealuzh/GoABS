@@ -21,6 +21,7 @@ type DynamicConfig struct {
 	BenchTimeout          string     `json:"bench_timeout"`
 	BenchMem              bool       `json:"bench_mem"`
 	Runs                  int        `json:"runs"`
+	RunDuration           Duration   `json:"run_duration"`
 	Regression            float32    `json:"regression"`
 	Functions             []Function `json:"functions"`
 	Rmit                  bool       `json:"rmit"`
