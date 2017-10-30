@@ -93,12 +93,12 @@ type runnerWithPenalty struct {
 	penalisedBenchs map[string]struct{}
 }
 
-func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, test, pkgName, fileName string) (int, error) {
+func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, suiteExec int, test, pkgName, fileName string) (int, error) {
 	if r.benchDuration != 0 {
 		startBench := time.Now()
 		benchCount := 0
 		for time.Since(startBench).Seconds() < r.benchDuration.Seconds() {
-			exec, err := r.RunBenchmarkOnce(bench, run, test, pkgName, fileName)
+			exec, err := r.RunBenchmarkOnce(bench, run, suiteExec, test, pkgName, fileName)
 			if err != nil || !exec {
 				return benchCount, err
 			}
@@ -108,7 +108,7 @@ func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, test, pkg
 	}
 
 	// no benchmark duration supplied -> only one benchmark execution
-	exec, err := r.RunBenchmarkOnce(bench, run, test, pkgName, fileName)
+	exec, err := r.RunBenchmarkOnce(bench, run, suiteExec, test, pkgName, fileName)
 	if exec {
 		return 1, err
 	}
@@ -116,7 +116,7 @@ func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, test, pkg
 
 }
 
-func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, test, pkgName, fileName string) (bool, error) {
+func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suiteExec int, test, pkgName, fileName string) (bool, error) {
 	relBenchName := fmt.Sprintf("%s/%s::%s", pkgName, fileName, bench.Name)
 	// check if benchmark is penaltised
 	_, penaltised := r.penalisedBenchs[relBenchName]
@@ -153,7 +153,7 @@ func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, test,
 		return false, err
 	}
 
-	saveBenchOut(test, run, bench, pkgName, result, r.out, r.benchMem)
+	saveBenchOut(test, run, suiteExec, bench, pkgName, result, r.out, r.benchMem)
 
 	return true, nil
 }
@@ -161,7 +161,7 @@ func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, test,
 func (r *runnerWithPenalty) RunUntil(run int, test string, done <-chan struct{}) (int, error) {
 	benchCount := 0
 Forever:
-	for {
+	for suiteExec := 0; true; suiteExec++ {
 		for pkgName, pkg := range r.benchs {
 			fmt.Printf("# Execute Benchmarks in Dir: %s\n", pkgName)
 
@@ -176,7 +176,7 @@ Forever:
 				fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
 			Bench:
 				for _, bench := range file {
-					executed, err := r.RunBenchmark(bench, run, test, pkgName, fileName)
+					executed, err := r.RunBenchmark(bench, run, suiteExec, test, pkgName, fileName)
 
 					if err != nil {
 						return benchCount, err
@@ -211,7 +211,7 @@ func (r *runnerWithPenalty) RunOnce(run int, test string) (int, error) {
 		for fileName, file := range pkg {
 			fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
 			for _, bench := range file {
-				executed, err := r.RunBenchmark(bench, run, test, pkgName, fileName)
+				executed, err := r.RunBenchmark(bench, run, 0, test, pkgName, fileName)
 				if err != nil {
 					return benchCount, err
 				}
@@ -244,7 +244,7 @@ func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {
 	return execBenchs, err, dur
 }
 
-func saveBenchOut(test string, run int, b data.Function, pkg string, res []result, out csv.Writer, benchMem bool) {
+func saveBenchOut(test string, run int, suiteExec int, b data.Function, pkg string, res []result, out csv.Writer, benchMem bool) {
 	outSize := 4
 	if benchMem {
 		outSize += 2
@@ -252,7 +252,7 @@ func saveBenchOut(test string, run int, b data.Function, pkg string, res []resul
 
 	for _, result := range res {
 		rec := make([]string, 0, outSize)
-		rec = append(rec, strconv.FormatInt(int64(run), 10))
+		rec = append(rec, fmt.Sprintf("%d-%d", run, suiteExec))
 		rec = append(rec, test)
 		rec = append(rec, filepath.Join(pkg, b.File, b.Name))
 		rec = append(rec, strconv.FormatFloat(float64(result.Runtime), 'f', -1, 32))
