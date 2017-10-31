@@ -22,6 +22,8 @@ type DynamicConfig struct {
 	BenchMem              bool       `json:"bench_mem"`
 	Runs                  int        `json:"runs"`
 	RunDuration           Duration   `json:"run_duration"`
+	Profile               Profile    `json:"profile"`
+	ProfileDir            string     `json:"profile_dir"`
 	Regression            float32    `json:"regression"`
 	Functions             []Function `json:"functions"`
 	Rmit                  bool       `json:"rmit"`
@@ -41,4 +43,41 @@ func (d *Duration) UnmarshalJSON(data []byte) error {
 
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("\"%s\"", time.Duration(d).String())), nil
+}
+
+type Profile string
+
+const (
+	NoProfile   Profile = "none"
+	AllProfiles Profile = "all"
+	CPUProfile  Profile = "cpu"
+	MemProfile  Profile = "mem"
+)
+
+var allProfiles = [...]string{string(NoProfile), string(AllProfiles), string(CPUProfile), string(MemProfile)}
+
+func (p Profile) String() string {
+	return string(p)
+}
+
+func (p *Profile) UnmarshalJSON(data []byte) error {
+	s := string(data)
+	s = s[1 : len(s)-1]
+
+	if s == "" {
+		*p = NoProfile
+		return nil
+	}
+
+	for _, profile := range allProfiles {
+		if s == profile {
+			*p = Profile(s)
+			return nil
+		}
+	}
+	return fmt.Errorf("Invalid Profile '%s'", s)
+}
+
+func (p Profile) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", p)), nil
 }

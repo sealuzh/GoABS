@@ -15,15 +15,18 @@ import (
 )
 
 const (
-	cmdName         = "go"
-	cmdArgsTest     = "test"
-	cmdArgsBench    = "-bench=^%s$"
-	cmdArgsCount    = "-count=%d"
-	cmdArgsNoTests  = "-run=^$"
-	cmdArgsTimeout  = "-timeout=%s"
-	cmdArgsMem      = "-benchmem"
-	benchRuntime    = 1
-	benchTimeoutMsg = "*** Test killed with quit: ran too long"
+	cmdName           = "go"
+	cmdArgsTest       = "test"
+	cmdArgsBench      = "-bench=^%s$"
+	cmdArgsCount      = "-count=%d"
+	cmdArgsNoTests    = "-run=^$"
+	cmdArgsTimeout    = "-timeout=%s"
+	cmdArgsMem        = "-benchmem"
+	cmdArgsProfileOut = "-outputdir=%s"
+	cmdArgsCPUProfile = "-cpuprofile=%s"
+	cmdArgsMemProfile = "-memprofile=%s"
+	benchRuntime      = 1
+	benchTimeoutMsg   = "*** Test killed with quit: ran too long"
 )
 
 type Runner interface {
@@ -32,7 +35,7 @@ type Runner interface {
 
 // NewRunner creates a new benchmark runner.
 // By default it returns a penalised runner that in consecutive runs only executes successful benchmark executions.
-func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout string, benchDuration time.Duration, runDuration time.Duration, benchMem bool, out csv.Writer) (Runner, error) {
+func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout string, benchDuration time.Duration, runDuration time.Duration, benchMem bool, profile data.Profile, profileDir string, out csv.Writer) (Runner, error) {
 	// if benchmark gets executed over time period, do not do warm-up iterations
 	if benchDuration > 0 {
 		wi = 0
@@ -63,6 +66,8 @@ func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeo
 			resultParser:  rp,
 			out:           out,
 			benchs:        benchs,
+			profile:       profile,
+			profileDir:    profileDir,
 			env:           executil.Env(executil.GoPath(projectRoot)),
 			cmdCount:      cmdCount,
 			cmdArgs:       cmdArgs,
@@ -82,6 +87,8 @@ type defaultRunner struct {
 	resultParser  resultParser
 	out           csv.Writer
 	benchs        data.PackageMap
+	profile       data.Profile
+	profileDir    string
 	env           []string
 	cmdCount      string
 	cmdArgs       []string
@@ -93,12 +100,12 @@ type runnerWithPenalty struct {
 	penalisedBenchs map[string]struct{}
 }
 
-func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, suiteExec int, test, pkgName, fileName string) (int, error) {
+func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, suiteExec int, test string) (int, error) {
 	if r.benchDuration != 0 {
 		startBench := time.Now()
 		benchCount := 0
 		for time.Since(startBench).Seconds() < r.benchDuration.Seconds() {
-			exec, err := r.RunBenchmarkOnce(bench, run, suiteExec, test, pkgName, fileName)
+			exec, err := r.RunBenchmarkOnce(bench, run, suiteExec, benchCount, test)
 			if err != nil || !exec {
 				return benchCount, err
 			}
@@ -108,7 +115,7 @@ func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, suiteExec
 	}
 
 	// no benchmark duration supplied -> only one benchmark execution
-	exec, err := r.RunBenchmarkOnce(bench, run, suiteExec, test, pkgName, fileName)
+	exec, err := r.RunBenchmarkOnce(bench, run, suiteExec, 0, test)
 	if exec {
 		return 1, err
 	}
@@ -116,8 +123,8 @@ func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, suiteExec
 
 }
 
-func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suiteExec int, test, pkgName, fileName string) (bool, error) {
-	relBenchName := fmt.Sprintf("%s/%s::%s", pkgName, fileName, bench.Name)
+func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suiteExec int, benchExec int, test string) (bool, error) {
+	relBenchName := fmt.Sprintf("%s/%s::%s", bench.Pkg, bench.File, bench.Name)
 	// check if benchmark is penaltised
 	_, penaltised := r.penalisedBenchs[relBenchName]
 	if penaltised {
@@ -127,6 +134,11 @@ func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suite
 
 	fmt.Printf("### Execute Benchmark: %s\n", bench.Name)
 	args := append(r.cmdArgs, fmt.Sprintf(cmdArgsBench, bench.Name))
+	// add profile if necessary
+	if r.profile != data.NoProfile {
+		args = r.profileCmdArgs(args, bench, run, suiteExec, benchExec, test)
+	}
+
 	c := exec.Command(cmdName, args...)
 	c.Env = r.env
 
@@ -153,7 +165,7 @@ func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suite
 		return false, err
 	}
 
-	saveBenchOut(test, run, suiteExec, bench, pkgName, result, r.out, r.benchMem)
+	saveBenchOut(test, run, suiteExec, bench, result, r.out, r.benchMem)
 
 	return true, nil
 }
@@ -176,7 +188,7 @@ Forever:
 				fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
 			Bench:
 				for _, bench := range file {
-					executed, err := r.RunBenchmark(bench, run, suiteExec, test, pkgName, fileName)
+					executed, err := r.RunBenchmark(bench, run, suiteExec, test)
 
 					if err != nil {
 						return benchCount, err
@@ -211,7 +223,7 @@ func (r *runnerWithPenalty) RunOnce(run int, test string) (int, error) {
 		for fileName, file := range pkg {
 			fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
 			for _, bench := range file {
-				executed, err := r.RunBenchmark(bench, run, 0, test, pkgName, fileName)
+				executed, err := r.RunBenchmark(bench, run, 0, test)
 				if err != nil {
 					return benchCount, err
 				}
@@ -237,6 +249,23 @@ func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 	return r.RunOnce(run, test)
 }
 
+func (r *runnerWithPenalty) profileCmdArgs(args []string, bench data.Function, run int, suiteExec int, benchExec int, test string) []string {
+	cmdProfileOut := fmt.Sprintf(cmdArgsProfileOut, r.profileDir)
+	cpuPath := profileName(bench, run, suiteExec, benchExec, test, "cpu")
+	cpuArg := fmt.Sprintf(cmdArgsCPUProfile, cpuPath)
+	memPath := profileName(bench, run, suiteExec, benchExec, test, "mem")
+	memArg := fmt.Sprintf(cmdArgsMemProfile, memPath)
+	switch r.profile {
+	case data.AllProfiles:
+		args = append(args, cmdProfileOut, cpuArg, memArg)
+	case data.CPUProfile:
+		args = append(args, cmdProfileOut, cpuArg)
+	case data.MemProfile:
+		args = append(args, cmdProfileOut, memArg)
+	}
+	return args
+}
+
 func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {
 	now := time.Now()
 	execBenchs, err := r.Run(run, test)
@@ -244,7 +273,11 @@ func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {
 	return execBenchs, err, dur
 }
 
-func saveBenchOut(test string, run int, suiteExec int, b data.Function, pkg string, res []result, out csv.Writer, benchMem bool) {
+func profileName(bench data.Function, run int, suiteExec int, benchExec int, test string, t string) string {
+	return fmt.Sprintf("%d-%d-%d_%s_%s_%s_%s", run, suiteExec, benchExec, test, bench.Pkg, bench.Name, t)
+}
+
+func saveBenchOut(test string, run int, suiteExec int, b data.Function, res []result, out csv.Writer, benchMem bool) {
 	outSize := 4
 	if benchMem {
 		outSize += 2
@@ -254,7 +287,7 @@ func saveBenchOut(test string, run int, suiteExec int, b data.Function, pkg stri
 		rec := make([]string, 0, outSize)
 		rec = append(rec, fmt.Sprintf("%d-%d", run, suiteExec))
 		rec = append(rec, test)
-		rec = append(rec, filepath.Join(pkg, b.File, b.Name))
+		rec = append(rec, filepath.Join(b.Pkg, b.File, b.Name))
 		rec = append(rec, strconv.FormatFloat(float64(result.Runtime), 'f', -1, 32))
 
 		if benchMem {

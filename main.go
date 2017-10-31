@@ -52,6 +52,25 @@ func parseConfig() data.Config {
 		panic(fmt.Errorf("Could not parse config file: %v", err))
 	}
 
+	// set defaults for config
+	if config.DynamicConfig.Profile == "" {
+		config.DynamicConfig.Profile = data.NoProfile
+	}
+
+	if config.DynamicConfig.Profile != data.NoProfile && config.DynamicConfig.ProfileDir == "" {
+		panic(fmt.Errorf("No profile dir specified (-profileDir)"))
+	}
+
+	if config.DynamicConfig.ProfileDir != "" {
+		fi, err := os.Stat(config.DynamicConfig.ProfileDir)
+		if err != nil {
+			panic(fmt.Sprintf("Profile directory error: %v", err))
+		}
+		if !fi.IsDir() {
+			panic("Profile directory error: not a directory")
+		}
+	}
+
 	return config
 }
 
@@ -118,6 +137,8 @@ func dptc(c data.Config) error {
 		time.Duration(c.DynamicConfig.BenchDuration),
 		time.Duration(c.DynamicConfig.RunDuration),
 		c.DynamicConfig.BenchMem,
+		c.DynamicConfig.Profile,
+		c.DynamicConfig.ProfileDir,
 		*out,
 	)
 	if err != nil {
