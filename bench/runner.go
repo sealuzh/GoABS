@@ -165,7 +165,7 @@ func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suite
 		return false, err
 	}
 
-	saveBenchOut(test, run, suiteExec, bench, result, r.out, r.benchMem)
+	saveBenchOut(test, run, suiteExec, benchExec, bench, result, r.out, r.benchMem)
 
 	return true, nil
 }
@@ -274,10 +274,25 @@ func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {
 }
 
 func profileName(bench data.Function, run int, suiteExec int, benchExec int, test string, t string) string {
-	return fmt.Sprintf("%d-%d-%d_%s_%s_%s_%s", run, suiteExec, benchExec, test, bench.Pkg, bench.Name, t)
+	return fmt.Sprintf("%d-%d-%d_%s_%s_%s_%s", run, suiteExec, benchExec, replaceSlashes(test), replaceSlashes(bench.Pkg), bench.Name, t)
 }
 
-func saveBenchOut(test string, run int, suiteExec int, b data.Function, res []result, out csv.Writer, benchMem bool) {
+func replaceSlashes(p string) string {
+	if len(p) == 0 {
+		return ""
+	}
+
+	// remove leading /
+	if strings.HasPrefix(p, "/") {
+		p = p[1:]
+	}
+	if strings.HasSuffix(p, "/") {
+		p = p[:len(p)-1]
+	}
+	return strings.Replace(p, "/", "-", -1)
+}
+
+func saveBenchOut(test string, run int, suiteExec int, benchExec int, b data.Function, res []result, out csv.Writer, benchMem bool) {
 	outSize := 4
 	if benchMem {
 		outSize += 2
@@ -285,7 +300,7 @@ func saveBenchOut(test string, run int, suiteExec int, b data.Function, res []re
 
 	for _, result := range res {
 		rec := make([]string, 0, outSize)
-		rec = append(rec, fmt.Sprintf("%d-%d", run, suiteExec))
+		rec = append(rec, fmt.Sprintf("%d-%d-%d", run, suiteExec, benchExec))
 		rec = append(rec, test)
 		rec = append(rec, filepath.Join(b.Pkg, b.File, b.Name))
 		rec = append(rec, strconv.FormatFloat(float64(result.Runtime), 'f', -1, 32))
