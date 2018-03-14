@@ -67,3 +67,24 @@ Run-SuiteExecution-BenchmarkExecution?-?;Function altered;Benchmark;Runtime in n
 
 Run gets increased according to json attribute `"runs"`, SuiteExecution according to `"run_duration"`, and BenchmarkExecution according to `"bench_duration"`. Intuitively, `"runs"` defines how often the benchmark suite should be executed, `"run_duration"` defines how long each suite is executed (potentially multiple times), and `"bench_duration"` defines how long each benchmark is executed (potentially multiple times). All values start at 0.
 
+## Tracing of API Asage
+
+### Execution
+```bash
+goabs -c config.json -t -o trace_out.csv
+cd PATH/TO/UNIT_TEST_LIB
+go test ./...
+```
+
+### Config File
+```json
+{
+	"project":  "PATH/TO/UNIT_TEST_LIB",
+	"trace_lib": "PATH/TO/API_TRACE_LIB"
+}
+```
+
+Use trace aggregator of [JavaAPIUsageTracer](https://github.com/sealuzh/JavaAPIUsageTracer) to sum traces for each function.
+
+Remark: do not forget to set the GOPATH correctly, and retrieve the dependencies og the unit test library before running script.
+
