@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 
-	"bitbucket.org/sealuzh/goptc/data"
+	"github.com/sealuzh/goabs/data"
 )
 
 func MatchingFunction(node *ast.FuncDecl, fun data.Function) bool {

@@ -12,11 +12,11 @@ import (
 	"runtime"
 	"time"
 
-	"bitbucket.org/sealuzh/goptc/bench"
-	"bitbucket.org/sealuzh/goptc/data"
-	"bitbucket.org/sealuzh/goptc/deps"
-	"bitbucket.org/sealuzh/goptc/trans/count"
-	"bitbucket.org/sealuzh/goptc/trans/regression"
+	"github.com/sealuzh/goabs/bench"
+	"github.com/sealuzh/goabs/data"
+	"github.com/sealuzh/goabs/deps"
+	"github.com/sealuzh/goabs/trans/count"
+	"github.com/sealuzh/goabs/trans/regression"
 )
 
 const (

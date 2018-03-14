@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"bitbucket.org/sealuzh/goptc/data"
+	"github.com/sealuzh/goabs/data"
 )
 
 const (

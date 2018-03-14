@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bitbucket.org/sealuzh/goptc/executil"
-	"bitbucket.org/sealuzh/goptc/trans"
+	"github.com/sealuzh/goabs/executil"
+	"github.com/sealuzh/goabs/trans"
 )
 
 const (

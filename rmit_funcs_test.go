@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"bitbucket.org/sealuzh/goptc/data"
+	"github.com/sealuzh/goabs/data"
 )
 
 func TestRmit(t *testing.T) {

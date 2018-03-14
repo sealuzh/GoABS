@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bitbucket.org/sealuzh/goptc/executil"
+	"github.com/sealuzh/goabs/executil"
 )
 
 const (

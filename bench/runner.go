@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.org/sealuzh/goptc/data"
-	"bitbucket.org/sealuzh/goptc/executil"
+	"github.com/sealuzh/goabs/data"
+	"github.com/sealuzh/goabs/executil"
 )
 
 const (

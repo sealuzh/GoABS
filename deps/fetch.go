@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"bitbucket.org/sealuzh/goptc/executil"
+	"github.com/sealuzh/goabs/executil"
 )
 
 func Fetch(projectPath string) error {

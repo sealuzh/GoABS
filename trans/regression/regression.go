@@ -10,8 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"bitbucket.org/sealuzh/goptc/data"
-	"bitbucket.org/sealuzh/goptc/trans"
+	"github.com/sealuzh/goabs/data"
+	"github.com/sealuzh/goabs/trans"
 )
 
 type Introducer interface {

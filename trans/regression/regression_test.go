@@ -14,7 +14,7 @@ import (
 	"testing"
 	"unicode"
 
-	"bitbucket.org/sealuzh/goptc/data"
+	"github.com/sealuzh/goabs/data"
 )
 
 // helper functions
