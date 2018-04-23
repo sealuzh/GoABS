@@ -15,6 +15,7 @@ import (
 
 const (
 	get      DepMgr = "Get"
+	dep      DepMgr = "dep"
 	glide    DepMgr = "Glide"
 	godep    DepMgr = "Godep"
 	govendor DepMgr = "Govendor"
@@ -122,6 +123,8 @@ func depsFolderInPath(path string) bool {
 func (d DepMgr) installCmd() string {
 	var cmd string
 	switch d {
+	case dep:
+		cmd = "dep ensure"
 	case glide:
 		cmd = "glide install"
 	case godep:
@@ -158,9 +161,16 @@ func (d DepMgr) installCmd() string {
 // based on https://github.com/blindpirate/report-of-build-tools-for-java-and-golang and
 // https://github.com/golang/go/wiki/PackageManagementTools
 func Manager(projectPath string) DepMgr {
-	// Godeps
-	p := filepath.Join(projectPath, "Godeps/Godeps.json")
+	// dep
+	p := filepath.Join(projectPath, "Gopkg.lock")
 	_, err := os.Stat(p)
+	if err == nil {
+		return dep
+	}
+
+	// Godeps
+	p = filepath.Join(projectPath, "Godeps/Godeps.json")
+	_, err = os.Stat(p)
 	if err == nil {
 		return godep
 	}
