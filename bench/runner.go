@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/sealuzh/goabs/data"
-	"github.com/sealuzh/goabs/executil"
+	"github.com/sealuzh/goabs/util"
 )
 
 const (
@@ -68,7 +68,7 @@ func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeo
 			benchs:        benchs,
 			profile:       profile,
 			profileDir:    profileDir,
-			env:           executil.Env(executil.GoPath(projectRoot)),
+			env:           util.Env(util.GoPath(projectRoot)),
 			cmdCount:      cmdCount,
 			cmdArgs:       cmdArgs,
 		},

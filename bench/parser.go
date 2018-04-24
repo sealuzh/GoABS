@@ -12,12 +12,10 @@ import (
 	"strings"
 
 	"github.com/sealuzh/goabs/data"
+	"github.com/sealuzh/goabs/util"
 )
 
 const (
-	vendorFolder     = "vendor"
-	usVendorFolder   = "_vendor"
-	workspaceFolder  = "_workspace"
 	goTestFileSuffix = "_test.go"
 	benchFuncPrefix  = "Benchmark"
 
@@ -35,7 +33,7 @@ func MatchingFunctions(rootPath, benchRegex string) (data.PackageMap, error) {
 			return nil
 		}
 
-		if !isValidDir(path) {
+		if !util.IsValidDir(path) {
 			return filepath.SkipDir
 		}
 
@@ -109,23 +107,6 @@ func parseFile(path, pkg, fn, benchRegex string) (data.File, error) {
 	ast.Walk(v, f)
 
 	return v.bs, nil
-}
-
-func isValidDir(path string) bool {
-	pathElems := strings.Split(path, string(filepath.Separator))
-
-	for _, el := range pathElems {
-		// remove everything from dependencies folder
-		if el == vendorFolder || el == usVendorFolder || el == workspaceFolder {
-			return false
-		}
-		// remove all hidden folders
-		if strings.HasPrefix(el, ".") {
-			return false
-		}
-	}
-
-	return true
 }
 
 type BenchVisitor struct {
