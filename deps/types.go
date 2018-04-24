@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sealuzh/goabs/executil"
+	"github.com/sealuzh/goabs/util"
 )
 
 const (
@@ -111,7 +111,7 @@ Loop:
 }
 
 func depsFolderInPath(path string) bool {
-	goPath := executil.GoPath(path)
+	goPath := util.GoPath(path)
 	for _, f := range depFolders {
 		if strings.Contains(goPath, f) {
 			return true
@@ -134,7 +134,7 @@ func (d DepMgr) installCmd() string {
 	//case submodule:
 	//	cmd = "manul -I"
 	case gvt:
-		cmd = "gvt fetch"
+		cmd = "gvt restore"
 	case govend:
 		cmd = "govend -v"
 	case trash:
