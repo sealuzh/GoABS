@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sealuzh/goabs/trans"
-	"github.com/sealuzh/goabs/util"
+	"github.com/sealuzh/goabs/utils/astutil"
+	"github.com/sealuzh/goabs/utils/executil"
 )
 
 const (
@@ -55,7 +55,7 @@ func Functions(project, traceLibrary, out string, execTests bool) error {
 		}
 
 		c := exec.Command("go", "test", "./...")
-		c.Env = util.Env(util.GoPath(project))
+		c.Env = executil.Env(executil.GoPath(project))
 		res, err := c.CombinedOutput()
 		if err != nil {
 			fmt.Printf("Error while executing go test command: %v\n", err)
@@ -206,7 +206,7 @@ func transformFile(path string, f *ast.File, fset *token.FileSet, writerPkgName,
 
 	if v.transformed.v {
 		// add import
-		pkgNameRet := trans.AddImport(writerPkgName, f)
+		pkgNameRet := astutil.AddImport(writerPkgName, f)
 		if pkgName != pkgNameRet {
 			// should never be the case
 			// if it is the case that means that someone already used the package name in the imports
@@ -274,7 +274,7 @@ func (v publicFuncCountVisitor) VisitFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	}
 
 	var recv string
-	rt, err := trans.ReceiverType(node)
+	rt, err := astutil.ReceiverType(node)
 	if err == nil {
 		// is method
 		recv = fmt.Sprintf("(%s).", rt)

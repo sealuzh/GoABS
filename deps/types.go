@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sealuzh/goabs/util"
+	"github.com/sealuzh/goabs/utils/executil"
 )
 
 const (
@@ -111,7 +111,7 @@ Loop:
 }
 
 func depsFolderInPath(path string) bool {
-	goPath := util.GoPath(path)
+	goPath := executil.GoPath(path)
 	for _, f := range depFolders {
 		if strings.Contains(goPath, f) {
 			return true

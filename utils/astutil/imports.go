@@ -1,4 +1,4 @@
-package trans
+package astutil
 
 import (
 	"fmt"
@@ -26,7 +26,7 @@ func AddImport(importName string, node *ast.File) string {
 			},
 		}
 
-		li := lastImportStmt(node.Decls)
+		li := LastImportStmt(node.Decls)
 
 		newDecls := make([]ast.Decl, 0, len(node.Decls)+1)
 		newDecls = append(newDecls, node.Decls[:li]...)
@@ -48,7 +48,7 @@ func AddImport(importName string, node *ast.File) string {
 	return importName
 }
 
-func lastImportStmt(decls []ast.Decl) int {
+func LastImportStmt(decls []ast.Decl) int {
 	i := 0
 	inImports := false
 L:

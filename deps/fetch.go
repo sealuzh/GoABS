@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sealuzh/goabs/util"
+	"github.com/sealuzh/goabs/utils/executil"
 )
 
 func Fetch(projectPath string) error {
@@ -13,8 +13,8 @@ func Fetch(projectPath string) error {
 		return err
 	}
 	depMgr := Manager(projectPath)
-	gopath := util.GoPath(projectPath)
-	env := util.Env(gopath)
+	gopath := executil.GoPath(projectPath)
+	env := executil.Env(gopath)
 	out, err := depMgr.FetchDeps(env)
 	if err != nil {
 		return fmt.Errorf("Error while fetching dependencies for '%s': %v\n\nOut: %s", projectPath, err, string(out))

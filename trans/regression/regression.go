@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/sealuzh/goabs/data"
-	"github.com/sealuzh/goabs/trans"
+	"github.com/sealuzh/goabs/utils/astutil"
 )
 
 type Introducer interface {
@@ -101,13 +101,13 @@ func (v *relRegVisitor) Visit(node ast.Node) ast.Visitor {
 
 func (v *relRegVisitor) VisitFile(node *ast.File) ast.Visitor {
 	timePkgName := "time"
-	importName := trans.AddImport(timePkgName, node)
+	importName := astutil.AddImport(timePkgName, node)
 	v.timeImportName = importName
 	return v
 }
 
 func (v *relRegVisitor) VisitFuncDecl(node *ast.FuncDecl) ast.Visitor {
-	if !trans.MatchingFunction(node, v.fun) {
+	if !astutil.MatchingFunction(node, v.fun) {
 		return v
 	}
 

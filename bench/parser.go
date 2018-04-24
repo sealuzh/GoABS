@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/sealuzh/goabs/data"
-	"github.com/sealuzh/goabs/util"
+	"github.com/sealuzh/goabs/utils/fsutil"
 )
 
 const (
@@ -33,7 +33,7 @@ func MatchingFunctions(rootPath, benchRegex string) (data.PackageMap, error) {
 			return nil
 		}
 
-		if !util.IsValidDir(path) {
+		if !fsutil.IsValidDir(path) {
 			return filepath.SkipDir
 		}
 
