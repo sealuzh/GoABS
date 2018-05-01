@@ -274,7 +274,7 @@ func (v publicFuncCountVisitor) VisitFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	}
 
 	var recv string
-	rt, err := astutil.ReceiverType(node)
+	rt, err := astutil.UntypedReceiverType(node)
 	if err == nil {
 		// is method
 		recv = fmt.Sprintf("(%s).", rt)

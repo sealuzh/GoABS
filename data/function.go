@@ -2,7 +2,6 @@ package data
 
 import (
 	"fmt"
-	"path/filepath"
 )
 
 // Function represents a Go function.
@@ -20,9 +19,19 @@ type Function struct {
 func (f Function) String() string {
 	funcName := f.Name
 	if f.Receiver != "" {
-		funcName = fmt.Sprintf("%s.%s", f.Receiver, f.Name)
+		funcName = fmt.Sprintf("(%s).%s", f.Receiver, f.Name)
 	}
-	s := filepath.Join(f.Pkg, f.File, funcName)
+	var s string
+	if f.File == "" {
+		s = fmt.Sprintf("%s.%s", f.Pkg, funcName)
+	} else {
+		s = fmt.Sprintf("%s.{%s}.%s", f.Pkg, f.File, funcName)
+	}
+	return s
+}
+
+func (f Function) StringWithLines() string {
+	s := f.String()
 	if f.StartLine != -1 && f.EndLine != -1 {
 		return fmt.Sprintf("%s:%d-%d", s, f.StartLine, f.EndLine)
 	}

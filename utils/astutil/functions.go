@@ -7,21 +7,32 @@ import (
 	"github.com/sealuzh/goabs/data"
 )
 
-func ReceiverType(fn *ast.FuncDecl) (string, error) {
+func ReceiverType(fn *ast.FuncDecl, pkg string) (string, error) {
 	if fn.Recv == nil {
 		// function and not method
 		return "", fmt.Errorf("%s is not a method", fn.Name.Name)
 	}
 	switch e := fn.Recv.List[0].Type.(type) {
 	case *ast.Ident:
-		return e.Name, nil
+		return typed(pkg, e), nil
 	case *ast.StarExpr:
 		if id, ok := e.X.(*ast.Ident); ok {
-			return fmt.Sprintf("*%s", id.Name), nil
+			return fmt.Sprintf("*%s", typed(pkg, id)), nil
 		}
 	}
 	// The parser accepts much more than just the legal forms.
 	return "", fmt.Errorf("Invalid receiver type for %s", fn.Name.Name)
+}
+
+func typed(pkg string, ident *ast.Ident) string {
+	if pkg == "" {
+		return ident.Name
+	}
+	return fmt.Sprintf("%s.%s", pkg, ident.Name)
+}
+
+func UntypedReceiverType(fn *ast.FuncDecl) (string, error) {
+	return ReceiverType(fn, "")
 }
 
 func MatchingFunction(node *ast.FuncDecl, fun data.Function) bool {
@@ -30,7 +41,7 @@ func MatchingFunction(node *ast.FuncDecl, fun data.Function) bool {
 	// receiver match
 	if node.Recv != nil {
 		// method
-		typeName, err := ReceiverType(node)
+		typeName, err := UntypedReceiverType(node)
 		if err != nil {
 			fmt.Println(err)
 			return false
