@@ -5,8 +5,8 @@ import "github.com/sealuzh/goabs/data"
 type List []Element
 
 type Element struct {
-	Caller data.Function
-	Callee data.Function
+	Caller data.Function `json:"caller"`
+	Callee data.Function `json:"callee"`
 }
 
 type Finder interface {

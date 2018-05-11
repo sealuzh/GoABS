@@ -3,11 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sealuzh/goabs/coverage/callsite"
 
 	"github.com/sealuzh/goabs/coverage/static"
 	"github.com/sealuzh/goabs/deps"
@@ -23,6 +26,7 @@ var excludeTests bool
 var recursivePackages bool
 var fetchDeps bool
 var printLogs bool
+var outType string
 
 var logger *log.Logger
 
@@ -33,6 +37,7 @@ func parseArgs() error {
 	flag.BoolVar(&fetchDeps, "fetch-deps", false, "Indicate to fetch dependencies automatically")
 	//argProjectPath := flag.String("proj", "", "Declares root package of project. If not provided, the first argument needs to be the root package")
 	flag.BoolVar(&printLogs, "logs", false, "Print logging to stdout")
+	ot := flag.String("ot", callsite.OutTypeLine, fmt.Sprintf("Output type ('%s', '%s')", callsite.OutTypeLine, callsite.OutTypeJson))
 
 	flag.Parse()
 	args := flag.Args()
@@ -61,6 +66,12 @@ func parseArgs() error {
 		}
 		gopath = argGoPathExpanded
 	}
+
+	// check output type
+	if *ot == "" || !(*ot == callsite.OutTypeLine || *ot == callsite.OutTypeJson) {
+		return fmt.Errorf("Invalid output type (ot). Was '%s'", *ot)
+	}
+	outType = *ot
 
 	// projectPath = *argProjectPath
 	// if projectPath != "" {
@@ -116,9 +127,21 @@ func main() {
 		return
 	}
 
-	for _, cs := range css {
-		fmt.Fprintln(os.Stdout, cs)
+	printOut(css, os.Stdout)
+}
+
+func printOut(css callsite.List, out io.Writer) {
+	var p callsite.Printer
+	switch outType {
+	case callsite.OutTypeLine:
+		p = callsite.NewLinePrinter(out, css)
+	case callsite.OutTypeJson:
+		p = callsite.NewJsonPrinter(out, css)
+	default:
+		fmt.Fprintf(out, "Invalid output type '%s'\n", outType)
+		return
 	}
+	p.Print()
 }
 
 func printConfig() {
