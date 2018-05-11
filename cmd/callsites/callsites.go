@@ -84,7 +84,7 @@ func main() {
 	}
 
 	logger = log.New(os.Stdout, "# ", log.Ldate|log.Lmicroseconds|log.Llongfile|log.LUTC)
-	if printLogs {
+	if !printLogs {
 		logger.SetOutput(ioutil.Discard)
 	}
 	printConfig()

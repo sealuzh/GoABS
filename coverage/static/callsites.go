@@ -3,6 +3,7 @@ package static
 import (
 	"fmt"
 	"go/build"
+	"os"
 
 	"github.com/sealuzh/goabs/coverage/callsite"
 	"github.com/sealuzh/goabs/data"
@@ -23,7 +24,8 @@ func NewStaticCallSiteFinder(path string, gopath string, recursivePackages bool,
 	}
 
 	return &staticCallSiteFinder{
-		cs:           map[string]callsite.List{}, // call sites of a package; index is file path (from src on)
+		cs:           map[string]callsite.List{},
+		csCounts:     map[string]int{},
 		gopath:       gopath,
 		pkgs:         pkgs,
 		pkgsMap:      pkgsMap,
@@ -34,7 +36,9 @@ func NewStaticCallSiteFinder(path string, gopath string, recursivePackages bool,
 type staticCallSiteFinder struct {
 	parsed       bool
 	count        int
-	cs           map[string]callsite.List
+	cs           map[string]callsite.List // call sites of a package; index is file path (from src on)
+	csCounts     map[string]int
+	csCountTotal int
 	gopath       string
 	pkgs         []string
 	pkgsMap      map[string]struct{}
@@ -71,6 +75,12 @@ func (f staticCallSiteFinder) Package(path string) (callsite.List, error) {
 	return ret, nil
 }
 
+func (f *staticCallSiteFinder) addCallsiteCount(fun data.Function, count int) {
+	pkg := fun.Pkg
+	f.csCountTotal += count
+	f.csCounts[pkg] += count
+}
+
 func (f *staticCallSiteFinder) addCallsites(callsites map[data.Function][]data.Function) {
 	for caller, callsites := range callsites {
 		pkg := caller.Pkg
@@ -79,6 +89,10 @@ func (f *staticCallSiteFinder) addCallsites(callsites map[data.Function][]data.F
 		if !ok {
 			f.cs[pkg] = callsite.List{}
 		}
+
+		callerCsCount := len(callsites)
+		// add callsite count for pkg
+		f.addCallsiteCount(caller, callerCsCount)
 
 		for _, cs := range callsites {
 			f.cs[pkg] = append(f.cs[pkg], callsite.Element{
@@ -94,6 +108,7 @@ func (f *staticCallSiteFinder) Parse() error {
 	conf.AllowErrors = true
 	conf.Build = &build.Default
 	conf.Build.GOPATH = f.gopath
+	//conf.Build.UseAllFiles = true // adds problems for type resolver
 	//conf.CreateFromFilenames(filepath.Join(gopath, pkg), fileName)
 	for _, pkg := range f.pkgs {
 		if f.excludeTests {
@@ -122,11 +137,9 @@ func (f *staticCallSiteFinder) Parse() error {
 	errorFree := 0
 	errors := 0
 Loop:
-	for t, pkg := range lp.AllPackages {
+	for _, pkg := range lp.AllPackages {
 		pkgName := pkg.Pkg.Path()
 		if _, ok := f.pkgsMap[pkgName]; ok {
-			fmt.Printf("%v\n%v\n%t\n\n", t, pkg,
-				pkg.TransitivelyErrorFree)
 			callsites, errs := ParseFiles(pkgName, pkg.Files, pkg)
 			if pkg.TransitivelyErrorFree {
 				errorFree++
@@ -134,13 +147,14 @@ Loop:
 				errors++
 			}
 			if errs != nil && len(errs) > 0 {
-				fmt.Printf("%v\n", errs)
+				fmt.Fprintf(os.Stderr, "%v\n", errs)
 				break Loop
 			}
 			f.addCallsites(callsites)
+			//fmt.Printf("%v\n%v\n%t\ncs count: %d\n\n", t, pkg, pkg.TransitivelyErrorFree, f.csCounts[pkgName])
 		}
 	}
-	fmt.Printf("error-free: %d\nerrors: %d\n", errorFree, errors)
+	//fmt.Printf("error-free: %d\nerrors: %d\n", errorFree, errors)
 
 	f.parsed = true
 
