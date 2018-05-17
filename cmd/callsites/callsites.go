@@ -48,7 +48,7 @@ func parseArgs() error {
 	args := flag.Args()
 	lenArgs := len(args)
 	if lenArgs != argSize {
-		return fmt.Errorf("Argument size invalid. Expected %d, but was %d", argSize, lenArgs)
+		return fmt.Errorf("Argument size invalid. Expected %d, but was %d.\nArgument indicates the Go package to analyse, which is of the same form as a Go import path (e.g., 'github.com/sealuzh/callsites')", argSize, lenArgs)
 	}
 
 	filePath = filepath.Clean(args[0])
