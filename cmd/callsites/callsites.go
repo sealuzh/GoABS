@@ -17,7 +17,10 @@ import (
 	"github.com/sealuzh/goabs/utils/fsutil"
 )
 
-const argSize = 1
+const (
+	argSize = 1
+	eof     = "EOF"
+)
 
 var filePath string
 var gopath string
@@ -27,6 +30,7 @@ var recursivePackages bool
 var fetchDeps bool
 var printLogs bool
 var outType string
+var printEOF bool
 
 var logger *log.Logger
 
@@ -37,6 +41,7 @@ func parseArgs() error {
 	flag.BoolVar(&fetchDeps, "fetch-deps", false, "Indicate to fetch dependencies automatically")
 	//argProjectPath := flag.String("proj", "", "Declares root package of project. If not provided, the first argument needs to be the root package")
 	flag.BoolVar(&printLogs, "logs", false, "Print logging to stdout")
+	flag.BoolVar(&printEOF, "print-eof", false, "Print EOF to end of output")
 	ot := flag.String("ot", callsite.OutTypeLine, fmt.Sprintf("Output type ('%s', '%s')", callsite.OutTypeLine, callsite.OutTypeJson))
 
 	flag.Parse()
@@ -142,6 +147,10 @@ func printOut(css callsite.List, out io.Writer) {
 		return
 	}
 	p.Print()
+
+	if printEOF {
+		fmt.Fprint(out, eof)
+	}
 }
 
 func printConfig() {
