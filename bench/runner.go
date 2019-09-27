@@ -18,6 +18,7 @@ const (
 	cmdName           = "go"
 	cmdArgsTest       = "test"
 	cmdArgsBench      = "-bench=^%s$"
+	cmdArgsBenchTime  = "-benchtime=%s"
 	cmdArgsCount      = "-count=%d"
 	cmdArgsNoTests    = "-run=^$"
 	cmdArgsTimeout    = "-timeout=%s"
@@ -35,7 +36,7 @@ type Runner interface {
 
 // NewRunner creates a new benchmark runner.
 // By default it returns a penalised runner that in consecutive runs only executes successful benchmark executions.
-func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout string, benchDuration time.Duration, runDuration time.Duration, benchMem bool, profile data.Profile, profileDir string, out csv.Writer) (Runner, error) {
+func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout, benchTime string, benchDuration, runDuration time.Duration, benchMem bool, profile data.Profile, profileDir string, out csv.Writer) (Runner, error) {
 	// if benchmark gets executed over time period, do not do warm-up iterations
 	if benchDuration > 0 {
 		wi = 0
@@ -47,7 +48,7 @@ func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeo
 	}
 
 	cmdCount := fmt.Sprintf(cmdArgsCount, (wi + mi))
-	cmdArgs := []string{cmdArgsTest, fmt.Sprintf(cmdArgsTimeout, timeout), cmdCount, cmdArgsNoTests}
+	cmdArgs := []string{cmdArgsTest, fmt.Sprintf(cmdArgsBenchTime, benchTime), fmt.Sprintf(cmdArgsTimeout, timeout), cmdCount, cmdArgsNoTests}
 
 	var rp resultParser = rtResultParser{}
 	if benchMem {

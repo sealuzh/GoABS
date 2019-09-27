@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	defaultBenchTime    = "1s"
 	defaultBenchTimeout = "10m"
 )
 
@@ -117,6 +118,11 @@ func dptc(c data.Config) error {
 		bto = defaultBenchTimeout
 	}
 
+	bt := c.DynamicConfig.BenchTime
+	if bt == "" {
+		bt = defaultBenchTime
+	}
+
 	var benchs data.PackageMap
 	if benchRegex := c.DynamicConfig.BenchmarkRegex; benchRegex != "" {
 		benchs, err = bench.MatchingFunctions(c.Project, benchRegex)
@@ -134,6 +140,7 @@ func dptc(c data.Config) error {
 		c.DynamicConfig.WarmupIterations,
 		c.DynamicConfig.MeasurementIterations,
 		bto,
+		bt,
 		time.Duration(c.DynamicConfig.BenchDuration),
 		time.Duration(c.DynamicConfig.RunDuration),
 		c.DynamicConfig.BenchMem,

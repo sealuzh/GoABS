@@ -17,8 +17,9 @@ type DynamicConfig struct {
 	BenchmarkRegex        string     `json:"bench_regex"`
 	WarmupIterations      int        `json:"wi"`
 	MeasurementIterations int        `json:"i"`
-	BenchDuration         Duration   `json:"bench_duration"`
+	BenchTime             string     `json:"bench_time"`
 	BenchTimeout          string     `json:"bench_timeout"`
+	BenchDuration         Duration   `json:"bench_duration"`
 	BenchMem              bool       `json:"bench_mem"`
 	Runs                  int        `json:"runs"`
 	RunDuration           Duration   `json:"run_duration"`
