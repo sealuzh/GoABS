@@ -294,7 +294,7 @@ func replaceSlashes(p string) string {
 }
 
 func saveBenchOut(test string, run int, suiteExec int, benchExec int, b data.Function, res []result, out csv.Writer, benchMem bool) {
-	outSize := 4
+	outSize := 5
 	if benchMem {
 		outSize += 2
 	}
@@ -304,6 +304,7 @@ func saveBenchOut(test string, run int, suiteExec int, benchExec int, b data.Fun
 		rec = append(rec, fmt.Sprintf("%d-%d-%d", run, suiteExec, benchExec))
 		rec = append(rec, test)
 		rec = append(rec, filepath.Join(b.Pkg, b.File, b.Name))
+		rec = append(rec, strconv.Itoa(result.Invocations))
 		rec = append(rec, strconv.FormatFloat(float64(result.Runtime), 'f', -1, 32))
 
 		if benchMem {
