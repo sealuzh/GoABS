@@ -252,9 +252,9 @@ func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
 
 func (r *runnerWithPenalty) profileCmdArgs(args []string, bench data.Function, run int, suiteExec int, benchExec int, test string) []string {
 	cmdProfileOut := fmt.Sprintf(cmdArgsProfileOut, r.profileDir)
-	cpuPath := profileName(bench, run, suiteExec, benchExec, test, "cpu")
+	cpuPath := profileName(bench, run, suiteExec, benchExec, test, "cpu.pprof")
 	cpuArg := fmt.Sprintf(cmdArgsCPUProfile, cpuPath)
-	memPath := profileName(bench, run, suiteExec, benchExec, test, "mem")
+	memPath := profileName(bench, run, suiteExec, benchExec, test, "mem.pprof")
 	memArg := fmt.Sprintf(cmdArgsMemProfile, memPath)
 	switch r.profile {
 	case data.AllProfiles:
