@@ -45,6 +45,7 @@ func parseConfig() data.Config {
 	if err != nil {
 		panic(fmt.Errorf("Could not open config: %v", err))
 	}
+	defer f.Close()
 
 	var config data.Config
 	d := json.NewDecoder(f)
@@ -110,6 +111,7 @@ func dptc(c data.Config) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	out := csv.NewWriter(f)
 	out.Comma = ';'
 
@@ -230,6 +232,8 @@ func clearTmpFolder(path string) func() {
 	if err != nil {
 		panic(fmt.Sprintf("Could not open tmp folder: %v", err))
 	}
+	defer folder.Close()
+
 	stat, err := folder.Stat()
 	if err != nil {
 		panic(fmt.Sprintf("Could not get info for folder: %v", err))
@@ -237,7 +241,6 @@ func clearTmpFolder(path string) func() {
 	if !stat.IsDir() {
 		panic(fmt.Sprintf("Path not a folder: %s", path))
 	}
-	folder.Close()
 	return func() {
 		contents, err := ioutil.ReadDir(path)
 		if err != nil {

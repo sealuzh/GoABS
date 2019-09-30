@@ -52,14 +52,13 @@ func (i *relIntroducer) Trans(fun data.Function) error {
 		fmt.Printf("Could not open file: %s\n", filePath)
 		return err
 	}
+	defer file.Close()
 
 	err = printer.Fprint(file, fset, f)
 	if err != nil {
-		file.Close()
 		fmt.Printf("Could not save back to file: %s\n", filePath)
 		return err
 	}
-	file.Close()
 
 	return nil
 }

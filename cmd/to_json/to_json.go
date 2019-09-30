@@ -22,6 +22,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer f.Close()
 
 	number, err := strconv.Atoi(os.Args[2])
 	if err != nil {
