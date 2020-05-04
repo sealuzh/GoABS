@@ -83,7 +83,7 @@ func main() {
 
 	// install project dependencies
 	if c.FetchDeps {
-		err := deps.Fetch(c.Project)
+		err := deps.Fetch(c.Project, c.GoRoot)
 		if err != nil {
 			panic(err)
 		}
@@ -137,6 +137,7 @@ func dptc(c data.Config) error {
 	}
 
 	runner, err := bench.NewRunner(
+		c.GoRoot,
 		c.Project,
 		benchs,
 		c.DynamicConfig.WarmupIterations,

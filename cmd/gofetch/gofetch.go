@@ -23,7 +23,7 @@ func main() {
 
 	projectPath := args[1]
 
-	err := deps.Fetch(projectPath)
+	err := deps.Fetch(projectPath, "")
 	if err != nil {
 		fmt.Fprintf(errorOut, "Could not fetch dependencies:\n%v\n", err)
 		return

@@ -55,7 +55,7 @@ func Functions(project, traceLibrary, out string, execTests bool) error {
 		}
 
 		c := exec.Command("go", "test", "./...")
-		c.Env = executil.Env(executil.GoPath(project))
+		c.Env = executil.Env("", executil.GoPath(project))
 		res, err := c.CombinedOutput()
 		if err != nil {
 			fmt.Printf("Error while executing go test command: %v\n", err)

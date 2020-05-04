@@ -11,6 +11,7 @@ type Config struct {
 	TraceLibrary  string        `json:"trace_lib"`
 	ClearFolder   string        `json:"clear"`
 	FetchDeps     bool          `json:"fetch_deps"`
+	GoRoot        string        `json:"go_root"`
 }
 
 type DynamicConfig struct {

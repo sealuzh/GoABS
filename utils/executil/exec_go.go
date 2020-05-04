@@ -10,23 +10,23 @@ import (
 const (
 	srcFolder      = "src"
 	goPathVariable = "GOPATH"
+	goRootVariable = "GOROOT"
 )
 
-func Env(goPath string) []string {
+func Env(goRoot, goPath string) []string {
 	env := os.Environ()
 	ret := make([]string, 0, len(env)+1)
-	added := false
+	goRootDecl := fmt.Sprintf("%s=%s", goRootVariable, goRoot)
 	goPathDecl := fmt.Sprintf("%s=%s", goPathVariable, goPath)
 	for _, e := range env {
-		if strings.HasPrefix(e, goPathVariable) {
+		switch {
+		case strings.HasPrefix(e, goRootVariable) && goRoot != "":
+			ret = append(ret, goRootDecl)
+		case strings.HasPrefix(e, goPathVariable) && goPath != "":
 			ret = append(ret, goPathDecl)
-			added = true
-		} else {
+		default:
 			ret = append(ret, e)
 		}
-	}
-	if !added {
-		ret = append(ret, goPathDecl)
 	}
 	return ret
 }

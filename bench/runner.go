@@ -36,7 +36,7 @@ type Runner interface {
 
 // NewRunner creates a new benchmark runner.
 // By default it returns a penalised runner that in consecutive runs only executes successful benchmark executions.
-func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeout, benchTime string, benchDuration, runDuration time.Duration, benchMem bool, profile data.Profile, profileDir string, out csv.Writer) (Runner, error) {
+func NewRunner(goRoot, projectRoot string, benchs data.PackageMap, wi int, mi int, timeout, benchTime string, benchDuration, runDuration time.Duration, benchMem bool, profile data.Profile, profileDir string, out csv.Writer) (Runner, error) {
 	// if benchmark gets executed over time period, do not do warm-up iterations
 	if benchDuration > 0 {
 		wi = 0
@@ -69,7 +69,7 @@ func NewRunner(projectRoot string, benchs data.PackageMap, wi int, mi int, timeo
 			benchs:        benchs,
 			profile:       profile,
 			profileDir:    profileDir,
-			env:           executil.Env(executil.GoPath(projectRoot)),
+			env:           executil.Env(goRoot, executil.GoPath(projectRoot)),
 			cmdCount:      cmdCount,
 			cmdArgs:       cmdArgs,
 		},

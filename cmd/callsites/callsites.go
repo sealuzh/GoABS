@@ -107,7 +107,7 @@ func main() {
 
 	// fetch dependencies
 	if fetchDeps {
-		err := deps.Fetch(filepath.Join(gopath, "src", projectPath))
+		err := deps.Fetch(filepath.Join(gopath, "src", projectPath), "")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not fetch dependencies:\n %v\n\n", err)
 		}
