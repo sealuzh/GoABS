@@ -52,26 +52,31 @@ func (d DepMgr) String() string {
 }
 
 func (d DepMgr) FetchDeps(env []string) ([]byte, error) {
-	var c *exec.Cmd
-	switch d {
-	case get:
+	if d == get {
 		return execGoGet(env)
-	default:
-		cmdArr := strings.Split(d.installCmd(), " ")
-		c = exec.Command(cmdArr[0])
-		if len(cmdArr) > 1 {
-			c.Args = cmdArr
-		}
 	}
+
+	var c *exec.Cmd
+	cmdArr := strings.Split(d.installCmd(), " ")
+	cmdName := cmdArr[0]
+
+	c = exec.Command(cmdName)
+	if len(cmdArr) > 1 {
+		c.Args = cmdArr
+	}
+
 	if len(env) > 0 {
 		c.Env = env
 	}
+
 	return c.CombinedOutput()
 }
 
 func execGoGet(env []string) ([]byte, error) {
+	goCommand := executil.GoCommand(env)
+
 	setEnv := len(env) > 0
-	c := exec.Command(goCmd, goList, goAllPkgs)
+	c := exec.Command(goCommand, goList, goAllPkgs)
 	if setEnv {
 		c.Env = env
 	}
@@ -97,7 +102,7 @@ Loop:
 			continue Loop
 		}
 
-		cmd := exec.Command(goCmd, goGet, pkg)
+		cmd := exec.Command(goCommand, goGet, pkg)
 		if setEnv {
 			cmd.Env = env
 		}
@@ -153,7 +158,7 @@ func (d DepMgr) installCmd() string {
 	case get:
 		fallthrough
 	default:
-		cmd = fmt.Sprintf("%s %s $(%s)", goCmd, goGet, goList)
+		cmd = fmt.Sprintf("%s %s %s", goCmd, goGet, goAllPkgs)
 	}
 	return cmd
 }

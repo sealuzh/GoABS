@@ -51,8 +51,6 @@ func NewRunner(goRoot, projectRoot string, benchs data.PackageMap, wi int, mi in
 	cmdCount := fmt.Sprintf(cmdArgsCount, (wi + mi))
 	cmdArgs := []string{cmdArgsTest, fmt.Sprintf(cmdArgsBenchTime, benchTime), fmt.Sprintf(cmdArgsTimeout, timeout), cmdCount, cmdArgsNoTests}
 
-	fmt.Println(cmdArgs)
-
 	var rp resultParser = rtResultParser{}
 	if benchMem {
 		cmdArgs = append(cmdArgs, cmdArgsMem)
@@ -150,7 +148,7 @@ func (r *runnerWithPenalty) RunBenchmarkOnce(ctx context.Context, bench data.Fun
 	}
 
 	// intentionally not using exec.CommandContex -> let's the benchmark finish first
-	c := exec.Command(cmdName, args...)
+	c := exec.Command(executil.GoCommand(r.env), args...)
 	c.Env = r.env
 
 	res, err := c.CombinedOutput()

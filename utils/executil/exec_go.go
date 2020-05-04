@@ -9,6 +9,7 @@ import (
 
 const (
 	srcFolder      = "src"
+	goCmd          = "go"
 	goPathVariable = "GOPATH"
 	goRootVariable = "GOROOT"
 )
@@ -20,6 +21,8 @@ func Env(goRoot, goPath string) []string {
 	goPathDecl := fmt.Sprintf("%s=%s", goPathVariable, goPath)
 	for _, e := range env {
 		switch {
+		case strings.HasPrefix(e, "PATH"):
+			ret = append(ret, replacePath(e, goRoot))
 		case strings.HasPrefix(e, goRootVariable) && goRoot != "":
 			ret = append(ret, goRootDecl)
 		case strings.HasPrefix(e, goPathVariable) && goPath != "":
@@ -29,6 +32,18 @@ func Env(goRoot, goPath string) []string {
 		}
 	}
 	return ret
+}
+
+func replacePath(path, goRoot string) string {
+	if goRoot == "" {
+		return path
+	}
+
+	return fmt.Sprintf(
+		"PATH=%s/bin:%s",
+		goRoot,
+		path[5:],
+	)
 }
 
 func GoPath(p string) string {
@@ -41,4 +56,15 @@ func GoPath(p string) string {
 		}
 	}
 	return fmt.Sprintf("/%s", filepath.Join(pathArr[:c]...))
+}
+
+func GoCommand(env []string) string {
+	cmd := goCmd
+	for _, ev := range env {
+		if strings.HasPrefix(ev, goRootVariable) {
+			goRoot := ev[7:] // GOROOT=x
+			cmd = fmt.Sprintf("%s/bin/%s", goRoot, goCmd)
+		}
+	}
+	return cmd
 }
