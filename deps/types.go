@@ -80,6 +80,7 @@ func execGoGet(env []string) ([]byte, error) {
 	if setEnv {
 		c.Env = env
 	}
+
 	out, err := c.CombinedOutput()
 	if err != nil {
 		return out, err
