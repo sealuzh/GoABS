@@ -18,11 +18,12 @@ type DynamicConfig struct {
 	BenchmarkRegex        string     `json:"bench_regex"`
 	WarmupIterations      int        `json:"wi"`
 	MeasurementIterations int        `json:"i"`
-	BenchTime             string     `json:"bench_time"`
-	BenchTimeout          string     `json:"bench_timeout"`
+	BenchTime             Duration   `json:"bench_time"`
+	BenchTimeout          Duration   `json:"bench_timeout"`
 	BenchDuration         Duration   `json:"bench_duration"`
 	BenchMem              bool       `json:"bench_mem"`
 	Runs                  int        `json:"runs"`
+	RunsTimeout           Duration   `json:"runs_timeout"`
 	RunDuration           Duration   `json:"run_duration"`
 	Profile               Profile    `json:"profile"`
 	ProfileDir            string     `json:"profile_dir"`
@@ -45,6 +46,10 @@ func (d *Duration) UnmarshalJSON(data []byte) error {
 
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("\"%s\"", time.Duration(d).String())), nil
+}
+
+func (d Duration) ToStdLib() time.Duration {
+	return time.Duration(d)
 }
 
 type Profile string

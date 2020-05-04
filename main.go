@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -20,8 +22,8 @@ import (
 )
 
 const (
-	defaultBenchTime    = "1s"
-	defaultBenchTimeout = "10m"
+	defaultBenchTime    = data.Duration(1 * time.Second)  // 1s
+	defaultBenchTimeout = data.Duration(10 * time.Minute) // 10m
 )
 
 // file (in and out) arguments
@@ -116,12 +118,12 @@ func dptc(c data.Config) error {
 	out.Comma = ';'
 
 	bto := c.DynamicConfig.BenchTimeout
-	if bto == "" {
+	if bto == 0 {
 		bto = defaultBenchTimeout
 	}
 
 	bt := c.DynamicConfig.BenchTime
-	if bt == "" {
+	if bt == 0 {
 		bt = defaultBenchTime
 	}
 
@@ -142,10 +144,10 @@ func dptc(c data.Config) error {
 		benchs,
 		c.DynamicConfig.WarmupIterations,
 		c.DynamicConfig.MeasurementIterations,
-		bto,
-		bt,
-		time.Duration(c.DynamicConfig.BenchDuration),
-		time.Duration(c.DynamicConfig.RunDuration),
+		bto.ToStdLib(),
+		bt.ToStdLib(),
+		c.DynamicConfig.BenchDuration.ToStdLib(),
+		c.DynamicConfig.RunDuration.ToStdLib(),
 		c.DynamicConfig.BenchMem,
 		c.DynamicConfig.Profile,
 		c.DynamicConfig.ProfileDir,
@@ -167,19 +169,28 @@ func dptc(c data.Config) error {
 		runs = 1
 	}
 
+	ctx := context.Background()
+	if c.DynamicConfig.RunsTimeout != 0 {
+		nctx, ctxCancel := context.WithTimeout(ctx, c.DynamicConfig.RunsTimeout.ToStdLib())
+		defer ctxCancel()
+		ctx = nctx
+	}
+
 	clear := clearTmpFolder(c.ClearFolder)
+	defer clear()
 
 	benchCounter := 0
 	start := time.Now()
 	regIntr := regression.NewRelative(c.Project, c.DynamicConfig.Regression)
+
 	for run := 0; run < runs; run++ {
 		fmt.Printf("---------- Run #%d ----------\n", run)
 		// execute baseline run
 		test := "Baseline"
 		fmt.Printf("--- Run #%d of %s\n", run, test)
-		execBenchs, err, dur := bench.TimedRun(runner, run, test)
+		execBenchs, err, dur := bench.TimedRun(ctx, runner, run, test)
 		if err != nil {
-			return err
+			return runTimeoutError(run, test, execBenchs, err, dur)
 		}
 		fmt.Printf("--- Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
 		// clear tmp folder
@@ -201,9 +212,9 @@ func dptc(c data.Config) error {
 				fmt.Printf("Could not introduce regression into function %s\n", test)
 				return err
 			}
-			execBenchs, err, dur := bench.TimedRun(runner, run, test)
+			execBenchs, err, dur := bench.TimedRun(ctx, runner, run, test)
 			if err != nil {
-				return err
+				return runTimeoutError(run, test, execBenchs, err, dur)
 			}
 			fmt.Printf("--- Run #%d of %s executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
 			benchCounter += execBenchs
@@ -221,6 +232,14 @@ func dptc(c data.Config) error {
 	took := time.Since(start)
 	fmt.Printf("\n%d Benchmarks executed in %d runs which took %dns\n", benchCounter, c.DynamicConfig.Runs, took.Nanoseconds())
 	return nil
+}
+
+func runTimeoutError(run int, test string, execBenchs int, err error, dur time.Duration) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		fmt.Printf("--- [timed out] Run #%d of %s and executed %d which took %dns\n", run, test, execBenchs, dur.Nanoseconds())
+		return nil
+	}
+	return err
 }
 
 func clearTmpFolder(path string) func() {

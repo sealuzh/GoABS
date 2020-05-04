@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"os"
@@ -31,12 +32,12 @@ const (
 )
 
 type Runner interface {
-	Run(run int, test string) (int, error)
+	Run(ctx context.Context, run int, test string) (int, error)
 }
 
 // NewRunner creates a new benchmark runner.
 // By default it returns a penalised runner that in consecutive runs only executes successful benchmark executions.
-func NewRunner(goRoot, projectRoot string, benchs data.PackageMap, wi int, mi int, timeout, benchTime string, benchDuration, runDuration time.Duration, benchMem bool, profile data.Profile, profileDir string, out csv.Writer) (Runner, error) {
+func NewRunner(goRoot, projectRoot string, benchs data.PackageMap, wi int, mi int, timeout, benchTime, benchDuration, runDuration time.Duration, benchMem bool, profile data.Profile, profileDir string, out csv.Writer) (Runner, error) {
 	// if benchmark gets executed over time period, do not do warm-up iterations
 	if benchDuration > 0 {
 		wi = 0
@@ -49,6 +50,8 @@ func NewRunner(goRoot, projectRoot string, benchs data.PackageMap, wi int, mi in
 
 	cmdCount := fmt.Sprintf(cmdArgsCount, (wi + mi))
 	cmdArgs := []string{cmdArgsTest, fmt.Sprintf(cmdArgsBenchTime, benchTime), fmt.Sprintf(cmdArgsTimeout, timeout), cmdCount, cmdArgsNoTests}
+
+	fmt.Println(cmdArgs)
 
 	var rp resultParser = rtResultParser{}
 	if benchMem {
@@ -97,26 +100,32 @@ type defaultRunner struct {
 
 type runnerWithPenalty struct {
 	defaultRunner
-	timeout         string
+	timeout         time.Duration
 	penalisedBenchs map[string]struct{}
 }
 
-func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, suiteExec int, test string) (int, error) {
+func (r *runnerWithPenalty) RunBenchmark(ctx context.Context, bench data.Function, run int, suiteExec int, test string) (int, error) {
 	if r.benchDuration != 0 {
 		startBench := time.Now()
 		benchCount := 0
 		for time.Since(startBench).Seconds() < r.benchDuration.Seconds() {
-			exec, err := r.RunBenchmarkOnce(bench, run, suiteExec, benchCount, test)
+			exec, err := r.RunBenchmarkOnce(ctx, bench, run, suiteExec, benchCount, test)
 			if err != nil || !exec {
 				return benchCount, err
 			}
 			benchCount++
+
+			select {
+			case <-ctx.Done():
+				return benchCount, ctx.Err()
+			default:
+			}
 		}
 		return benchCount, nil
 	}
 
 	// no benchmark duration supplied -> only one benchmark execution
-	exec, err := r.RunBenchmarkOnce(bench, run, suiteExec, 0, test)
+	exec, err := r.RunBenchmarkOnce(ctx, bench, run, suiteExec, 0, test)
 	if exec {
 		return 1, err
 	}
@@ -124,7 +133,7 @@ func (r *runnerWithPenalty) RunBenchmark(bench data.Function, run int, suiteExec
 
 }
 
-func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suiteExec int, benchExec int, test string) (bool, error) {
+func (r *runnerWithPenalty) RunBenchmarkOnce(ctx context.Context, bench data.Function, run int, suiteExec int, benchExec int, test string) (bool, error) {
 	relBenchName := fmt.Sprintf("%s/%s::%s", bench.Pkg, bench.File, bench.Name)
 	// check if benchmark is penaltised
 	_, penaltised := r.penalisedBenchs[relBenchName]
@@ -140,6 +149,7 @@ func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suite
 		args = r.profileCmdArgs(args, bench, run, suiteExec, benchExec, test)
 	}
 
+	// intentionally not using exec.CommandContex -> let's the benchmark finish first
 	c := exec.Command(cmdName, args...)
 	c.Env = r.env
 
@@ -171,7 +181,7 @@ func (r *runnerWithPenalty) RunBenchmarkOnce(bench data.Function, run int, suite
 	return true, nil
 }
 
-func (r *runnerWithPenalty) RunUntil(run int, test string, done <-chan struct{}) (int, error) {
+func (r *runnerWithPenalty) RunUntil(ctx context.Context, run int, test string, done <-chan struct{}) (int, error) {
 	benchCount := 0
 Forever:
 	for suiteExec := 0; true; suiteExec++ {
@@ -187,9 +197,8 @@ Forever:
 
 			for fileName, file := range pkg {
 				fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
-			Bench:
 				for _, bench := range file {
-					executed, err := r.RunBenchmark(bench, run, suiteExec, test)
+					executed, err := r.RunBenchmark(ctx, bench, run, suiteExec, test)
 
 					if err != nil {
 						return benchCount, err
@@ -197,10 +206,11 @@ Forever:
 					benchCount += executed
 
 					select {
+					case <-ctx.Done():
+						return benchCount, ctx.Err()
 					case <-done:
 						break Forever
 					default:
-						continue Bench
 					}
 				}
 			}
@@ -209,7 +219,7 @@ Forever:
 	return benchCount, nil
 }
 
-func (r *runnerWithPenalty) RunOnce(run int, test string) (int, error) {
+func (r *runnerWithPenalty) RunOnce(ctx context.Context, run int, test string) (int, error) {
 	benchCount := 0
 	for pkgName, pkg := range r.benchs {
 		fmt.Printf("# Execute Benchmarks in Dir: %s\n", pkgName)
@@ -224,30 +234,42 @@ func (r *runnerWithPenalty) RunOnce(run int, test string) (int, error) {
 		for fileName, file := range pkg {
 			fmt.Printf("## Execute Benchmarks of File: %s\n", fileName)
 			for _, bench := range file {
-				executed, err := r.RunBenchmark(bench, run, 0, test)
+				executed, err := r.RunBenchmark(ctx, bench, run, 0, test)
 				if err != nil {
 					return benchCount, err
 				}
 				benchCount += executed
 
+				select {
+				case <-ctx.Done():
+					return benchCount, ctx.Err()
+				default:
+				}
 			}
 		}
 	}
 	return benchCount, nil
 }
 
-func (r *runnerWithPenalty) Run(run int, test string) (int, error) {
+func (r *runnerWithPenalty) Run(ctx context.Context, run int, test string) (int, error) {
 	if r.runDuration != 0 {
 		done := make(chan struct{})
 		go func() {
-			select {
-			case <-time.After(r.runDuration):
-				close(done)
+		Loop:
+			for {
+				select {
+				case <-time.After(r.runDuration):
+					break Loop
+				case <-ctx.Done():
+					break Loop
+				default:
+				}
 			}
+			close(done)
 		}()
-		return r.RunUntil(run, test, done)
+		return r.RunUntil(ctx, run, test, done)
 	}
-	return r.RunOnce(run, test)
+	return r.RunOnce(ctx, run, test)
 }
 
 func (r *runnerWithPenalty) profileCmdArgs(args []string, bench data.Function, run int, suiteExec int, benchExec int, test string) []string {
@@ -267,9 +289,9 @@ func (r *runnerWithPenalty) profileCmdArgs(args []string, bench data.Function, r
 	return args
 }
 
-func TimedRun(r Runner, run int, test string) (int, error, time.Duration) {
+func TimedRun(ctx context.Context, r Runner, run int, test string) (int, error, time.Duration) {
 	now := time.Now()
-	execBenchs, err := r.Run(run, test)
+	execBenchs, err := r.Run(ctx, run, test)
 	dur := time.Since(now)
 	return execBenchs, err, dur
 }
