@@ -82,7 +82,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	parseArguments()
 	c := parseConfig()
-	q
+
 	// install project dependencies
 	if c.FetchDeps {
 		err := deps.Fetch(c.Project, c.GoRoot)
